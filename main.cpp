@@ -94,7 +94,7 @@ typedef union MIL1553_DATA_WORD_STRUCTURE{
 } mil1553_data;
 
 //ответное слово
-typedef union MIL1553_COMMAND_WORD_STRUCTURE{
+typedef union MIL1553_ANSWER_WORD_STRUCTURE{
     unsigned short sync_signal: 3; //снихро-сигнал
 
     //data
@@ -110,14 +110,14 @@ typedef union MIL1553_COMMAND_WORD_STRUCTURE{
     unsigned short OU_defect: 1; 
 
     unsigned short P: 1;
-} mil1553_command;
+} mil1553_answer;
 
 //глобальные переменные
 
 //реализация 
 int main(int argc, char *argv[]) 
 {
-    cout << "hi\n";
+    cout << "start\n";
 
     struct sockaddr_in adr, oth;
     memset((char *) &adr, 0, sizeof(adr));
