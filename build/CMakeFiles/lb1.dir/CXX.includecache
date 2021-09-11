@@ -1,0 +1,36 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb1/main.cpp
+iostream
+-
+string.h
+-
+sys/types.h
+-
+sys/socket.h
+-
+arpa/inet.h
+-
+chrono
+-
+functional
+-
+stdio.h
+-
+stdlib.h
+-
+netdb.h
+-
+netinet/in.h
+-
+string.h
+-
+unistd.h
+-
+
