@@ -6,14 +6,12 @@
 #include <chrono>
 #include <functional>
 #include <thread>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <unistd.h>
-
 #include <iomanip>
 
 using namespace std;
@@ -21,6 +19,7 @@ using namespace std;
 // константы
 #define PORT 12346
 #define IP_ADR ((in_addr_t)0x7F000001) // 127.0.0.1
+
 
 // структуры и объединения
 
@@ -136,7 +135,8 @@ class Timer
 {
 public:
     Timer(){};
-    void add(std::chrono::milliseconds delay, std::function<void()> callback)
+    void add(std::chrono::milliseconds delay, void (*callback)(int socket, struct sockaddr_in addr, void* data, int dsize),
+            int s, struct sockaddr_in a, void* d, int ds)
     {
         auto  start = std::chrono::system_clock::now();
         auto  current = std::chrono::system_clock::now();
@@ -144,30 +144,49 @@ public:
         {
             current = std::chrono::system_clock::now();
         }
-        callback();
+        callback(s, a, d, ds);
+        return;
     };
 };
 
 // функции
 
-void send_data(int socket, struct sockaddr* addr, char data) 
+void send_data(int socket, struct sockaddr_in addr, void* data, int dsize) 
 {
-    char buf[4] = {data};
-    cout << "in func buf: " << sizeof(data) << endl;
-    cout << "in func addr: " << sizeof(&addr) << endl;
-    if (sendto(socket, &data, sizeof(data), 0, addr, sizeof(&addr)) == -1)
+    char buf[sizeof(dsize)];
+    memcpy(buf, data, sizeof(buf));
+    if (sendto(socket, buf, dsize, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1)
 		{
 			perror("sending error");
 		}
 };
-
-// глобальные переменные
 
 // реализация
 int main(int argc, char *argv[])
 {
     cout << "start\n";
 
+    struct sockaddr_in adr, oth;
+    memset((char *)&adr, 0, sizeof(adr));
+    adr.sin_family = AF_INET;
+    adr.sin_port = htons(PORT);          // Host TO Network Short
+    adr.sin_addr.s_addr = htonl(IP_ADR); // Host TO Network Long
+
+    int s, i, slen = sizeof(adr);
+
+    // создание соединения
+    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) //IPPROTO_UDP
+    {
+        perror("connection error");
+    }
+
+    // bind socket to port
+    if (bind(s, (struct sockaddr *)&adr, slen) == -1)
+    {
+        perror("binding error");
+    }
+
+    // data
     arinc429_bcd bcd;
     arinc429_bnr bnr;
     arinc429_discrete discrete;
@@ -192,56 +211,17 @@ int main(int argc, char *argv[])
     bnr.SSM = 3;
     bnr.P = 1;
 
-    cout << "bcd: " << sizeof(bcd) << " byte" << endl;
-    cout << "bnr: " << sizeof(bnr) << " byte" << endl;
-    cout << "discrete: " << sizeof(discrete) << " byte" << endl;
-    cout << "ml_data: " << sizeof(ml_data) << " byte" << endl;
-    cout << "cmd: " << sizeof(cmd) << " byte" << endl;
-    cout << "answer: " << sizeof(answer) << " byte" << endl;
-
-    struct sockaddr_in adr, oth;
-    memset((char *)&adr, 0, sizeof(adr));
-    adr.sin_family = AF_INET;
-    adr.sin_port = htons(PORT);          // Host TO Network Short
-    adr.sin_addr.s_addr = htonl(IP_ADR); // Host TO Network Long
-
-    int s, i, slen = sizeof(adr);
-
-    // создание соединения
-    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) //IPPROTO_UDP
-    {
-        perror("connection error");
-    }
-
-    // bind socket to port
-    if (bind(s, (struct sockaddr *)&adr, slen) == -1)
-    {
-        perror("binding error");
-    }
-
-    // data
-    mil1553_data mil_pack1;
-    mil_pack1.sync_signal = 1;
-    mil_pack1.data = 5;
-    mil_pack1.P = 1;
-
-    //char* pack_ptr = (char*)&mil_pack1;
+    cout << "arinc429 bcd: " << sizeof(bcd) << " byte" << endl;
+    cout << "arinc429 bnr: " << sizeof(bnr) << " byte" << endl;
+    cout << "arinc429 discrete: " << sizeof(discrete) << " byte" << endl;
+    cout << "mil1553 data: " << sizeof(ml_data) << " byte" << endl;
+    cout << "mil1553 cmd: " << sizeof(cmd) << " byte" << endl;
+    cout << "mil1553 answer: " << sizeof(answer) << " byte" << endl;
 
     // send data
-    
-
-    char buf[sizeof(bnr)];
-
-    memcpy(buf, &bnr, sizeof(buf));
-
-    cout << "in main buf: " << sizeof(buf) << endl;
-    cout << "in main: " << sizeof(adr) << endl;
-
-    struct sockaddr* sock_addr = (struct sockaddr *)&adr;
-    //send_data(s, sock_addr, res);
-
-    if (sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)&adr, sizeof(adr)) == -1)
-		{
-			perror("sending error");
-		} 
+    Timer timer;
+    bool a = 1;
+    while (a) {
+        timer.add(std::chrono::seconds(1), send_data, s, adr, &bnr, sizeof(bnr));
+    }
 }
