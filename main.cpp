@@ -26,6 +26,7 @@ using namespace std;
 /* ARINC-429 */
 
 // BNR
+#pragma pack(push,1)
 typedef struct ARINC429_BNR_STRUCTURE
 {
     unsigned short label : 8; // он же адрес
@@ -38,8 +39,10 @@ typedef struct ARINC429_BNR_STRUCTURE
     unsigned short SSM : 2;
     unsigned short P : 1;
 } arinc429_bnr;
+#pragma pack(pop)
 
 // BCD
+#pragma pack(push,1)
 typedef struct ARINC429_BCD_STRUCTURE
 {
     unsigned short label : 8; // он же адрес
@@ -55,8 +58,10 @@ typedef struct ARINC429_BCD_STRUCTURE
     unsigned short SSM : 2;
     unsigned short P : 1;
 } arinc429_bcd;
+#pragma pack(pop)
 
 // DISCRETE
+#pragma pack(push,1)
 typedef struct ARINC429_DISCRETE_STRUCTURE
 {
     unsigned short label : 8; // он же адрес
@@ -81,10 +86,12 @@ typedef struct ARINC429_DISCRETE_STRUCTURE
     unsigned short SSM : 2;
     unsigned short P : 1;
 } arinc429_discrete;
+#pragma pack(pop)
 
 /* MIL-1553B */
 
 // командное слово
+#pragma pack(push,1)
 typedef struct MIL1553_COMMAND_WORD_STRUCTURE
 {
     unsigned short sync_signal : 3; // снихро-сигнал
@@ -97,8 +104,10 @@ typedef struct MIL1553_COMMAND_WORD_STRUCTURE
 
     unsigned short P : 1;
 } mil1553_command;
+#pragma pack(pop)
 
 // слово данных
+#pragma pack(push,1)
 typedef struct MIL1553_DATA_WORD_STRUCTURE
 {
     unsigned short sync_signal : 3; // снихро-сигнал
@@ -108,8 +117,10 @@ typedef struct MIL1553_DATA_WORD_STRUCTURE
 
     unsigned short P : 1;
 } mil1553_data;
+#pragma pack(pop)
 
 // ответное слово
+#pragma pack(push, 1)
 typedef struct MIL1553_ANSWER_WORD_STRUCTURE
 {
     unsigned short sync_signal : 3; // снихро-сигнал
@@ -128,6 +139,7 @@ typedef struct MIL1553_ANSWER_WORD_STRUCTURE
 
     unsigned short P : 1;
 } mil1553_answer;
+#pragma pack(pop)
 
 /* таймер */
 
@@ -159,6 +171,7 @@ void send_data(int socket, struct sockaddr_in addr, void* data, int dsize)
 		{
 			perror("sending error");
 		}
+    return;
 };
 
 // реализация
