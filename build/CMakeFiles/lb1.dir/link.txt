@@ -1,1 +1,1 @@
-/usr/bin/c++  -g  -rdynamic CMakeFiles/lb1.dir/main.cpp.o  -o lb1 
+/usr/bin/c++   -pthread -g  -rdynamic CMakeFiles/lb1.dir/main.cpp.o  -o lb1 

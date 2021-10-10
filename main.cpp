@@ -13,6 +13,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <iomanip>
+#include <thread>
+#include <mutex>
+#include <random>
 
 using namespace std;
 
@@ -20,6 +23,75 @@ using namespace std;
 #define PORT 12346
 #define IP_ADR ((in_addr_t)0x7F000001) // 127.0.0.1
 
+
+/* ---------- ИНС ---------- */
+
+float lambda0 = 56;
+float phi0 = 47;
+mutex mtx;
+
+// самоконтроль
+void ins_self_check() {
+    cout << "Тест-контроль устройств ИНС 20 сек...\n";
+
+    timer(std::chrono::seconds(2));
+    bool check = 1;
+
+    if (check == 1) {
+        cout << "ИНС: Исправность ИНС\n";
+    }
+    else {
+        cout << "ИНС: Нет начальных данных";
+    }
+    //return 1; // 1 - исправность
+};
+
+bool ins_prepare() {
+    cout << "ИНС: подготовка 120 сек...\n";
+    float l0 = lambda0;
+    float f0 = phi0;
+    timer(std::chrono::seconds(2));
+    
+    mtx.lock();
+    if ( (l0 != lambda0) & (f0 != phi0) ) {
+        cout << "ИНС: подготовка завершена.\n" << endl;
+        return 1;
+    };
+    mtx.unlock();
+};
+
+void ins() {
+    ins_self_check();
+    if (ins_prepare()) {
+        cout << "Переключение в режим навигации.\n";
+    }
+};
+
+/* ---------- СНС ---------- */
+// самоконтроль
+void sns_self_check() {
+    cout << "СНС: тест-контроль устройств ИНС 20 сек...\n";
+
+    timer(std::chrono::seconds(2));
+    bool check = 1;
+
+    if (check == 1) {
+        cout << "СНС: исправность, работа, синхронизация\n";
+    }
+    //return 1; // 1 - исправность
+};
+
+void sns_navigation(float &longtitude, float &latitude) {
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(0, 0.2);
+    longtitude += distribution(generator);
+    latitude += distribution(generator);
+};
+
+void sns() {
+    sns_self_check();
+    
+}
 
 // структуры и объединения
 
@@ -184,6 +256,16 @@ public:
     };
 };
 
+void timer(std::chrono::seconds delay) {
+    auto  start = std::chrono::system_clock::now();
+        auto  current = std::chrono::system_clock::now();
+        while ((current - start) < delay) 
+        {
+            current = std::chrono::system_clock::now();
+        }
+        return;
+}
+
 // функции
 
 void send_data(int socket, struct sockaddr_in addr, void* data, int dsize) 
@@ -200,7 +282,37 @@ void send_data(int socket, struct sockaddr_in addr, void* data, int dsize)
 // реализация
 int main(int argc, char *argv[])
 {
-    cout << "start\n";
+    cout << "start\n" << endl;
+
+    cout << "подача питания?\n" << endl;
+    bool on = 0;
+    string on_s = "";
+    cin >> on_s;
+    if (on_s == "0") {
+        on = 0;
+        return 1;
+    }
+    else if (on_s != "1") {
+         cout << "введите 0 или 1.\n";
+         return 1;
+    }
+
+    on = 1;
+    std::thread t1(ins_self_check);
+    std::thread t2(sns_self_check);
+    t1.join();
+    t2.join();
+
+    cout << to_string(lambda0) << endl;
+    cout << to_string(phi0) << endl;
+    std::thread t3(sns_navigation, std::ref(lambda0), std::ref(phi0));
+    t3.join();
+    cout << to_string(lambda0) << endl;
+    cout << to_string(phi0) << endl;
+
+    cout << endl;
+
+
 
     struct sockaddr_in adr, oth;
     memset((char *)&adr, 0, sizeof(adr));
