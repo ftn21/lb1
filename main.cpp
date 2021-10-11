@@ -19,86 +19,16 @@
 
 using namespace std;
 
+
 // константы
 #define PORT 12346
 #define IP_ADR ((in_addr_t)0x7F000001) // 127.0.0.1
 
-
-/* ---------- ИНС ---------- */
-
+// глобальные переменные
 float lambda0 = 56;
 float phi0 = 47;
 int stls = 4;
 mutex mtx;
-
-// самоконтроль
-void ins_self_check() {
-    cout << "Тест-контроль устройств ИНС 20 сек...\n";
-
-    timer(std::chrono::seconds(2));
-    bool check = 1;
-
-    if (check == 1) {
-        cout << "ИНС: Исправность ИНС.\n";
-        cout << "ИНС: Нет начальных данных.\n";
-    }
-    //return 1; // 1 - исправность
-};
-
-bool ins_prepare() {
-    cout << "ИНС: подготовка...\n";
-    float l0 = lambda0;
-    float f0 = phi0;
-    
-    if ( (l0 != lambda0) & (f0 != phi0) ) {
-        cout << "ИНС: подготовка завершена.\n" << endl;
-        return 1;
-    };
-
-};
-
-void ins() {
-    ins_self_check();     // самоконтроль
-    while (!ins_prepare()) {}  // подготовка
-    timer(std::chrono::seconds(3));
-    cout << "ИНС: готовность.\n";
-    cout << "ИНС: переключение в режим навигации.\n";
-};
-
-/* ---------- СНС ---------- */
-// самоконтроль
-void sns_self_check() {
-    cout << "СНС: тест-контроль устройств ИНС 20 сек...\n";
-
-    timer(std::chrono::seconds(2));
-    bool check = 1;
-
-    if (check == 1) {
-        cout << "СНС: исправность, работа, синхронизация\n";
-    }
-    //return 1; // 1 - исправность
-};
-
-void sns_navigation() {
-    std::default_random_engine generator;
-    std::normal_distribution<double> distribution(0, 0.02);
-    mtx.lock();
-    lambda0 += distribution(generator);
-    phi0 += distribution(generator);
-    mtx.unlock();
-};
-
-void sns() {
-    sns_self_check();
-    timer(std::chrono::seconds(3));
-    if (stls >= 4) {
-        cout << "СНС: переключение в режим навигации.\n";
-    }
-    while (stls >= 4) {
-        sns_navigation();
-    }
-    
-}
 
 // структуры и объединения
 
@@ -173,7 +103,7 @@ union ARINC429_DISCRETE_UNION
 
         unsigned short SSM : 2;
         unsigned short P : 1;
-    };
+    } dsc;
     unsigned int Word;
 };
 #pragma pack(pop)
@@ -263,17 +193,7 @@ public:
     };
 };
 
-void timer(std::chrono::seconds delay) {
-    auto  start = std::chrono::system_clock::now();
-        auto  current = std::chrono::system_clock::now();
-        while ((current - start) < delay) 
-        {
-            current = std::chrono::system_clock::now();
-        }
-        return;
-}
-
-// функции
+// объявление функций
 
 void send_data(int socket, struct sockaddr_in addr, void* data, int dsize) 
 {
@@ -286,41 +206,106 @@ void send_data(int socket, struct sockaddr_in addr, void* data, int dsize)
     return;
 };
 
-// реализация
-int main(int argc, char *argv[])
-{
-    cout << "start\n" << endl;
+void timer(std::chrono::seconds delay) {
+    auto  start = std::chrono::system_clock::now();
+        auto  current = std::chrono::system_clock::now();
+        while ((current - start) < delay) 
+        {
+            current = std::chrono::system_clock::now();
+        }
+        return;
+};
 
-    cout << "подача питания?\n" << endl;
-    bool on = 0;
-    string on_s = "";
-    cin >> on_s;
-    if (on_s == "0") {
-        on = 0;
-        return 1;
+/* ---------- ИНС ---------- */
+
+// слово состояния ИНС
+ARINC429_DISCRETE_UNION ins_state;
+
+// самоконтроль
+void ins_self_check() {
+    cout << "Тест-контроль устройств ИНС 20 сек...\n";
+
+    timer(std::chrono::seconds(2));
+    bool check = 1;
+
+    if (check == 1) {
+        cout << "ИНС: Исправность ИНС.\n";
+        cout << "ИНС: Нет начальных данных.\n";
+
+        ins_state.dsc.label = 210;
+        ins_state.dsc.SDI = 01;
+        ins_state.dsc.prep_ZK = 0;
+        ins_state.dsc.control = 0;
+        ins_state.dsc.navigation = 0;
+        ins_state.dsc.gyrocopmassing = 0;
+        ins_state.dsc.relaunch = 0;
+        ins_state.dsc.prep_scale = 1; // таблица 4а?
+        ins_state.dsc.heat = 1;
+        ins_state.dsc.termostat = 1;
+        ins_state.dsc.init_data = 0;
+        ins_state.dsc.H_abc = 0;
+        ins_state.dsc.boost = 0;
+        ins_state.dsc.ready = 0;
+        ins_state.dsc.P = 0;
     }
-    else if (on_s != "1") {
-         cout << "введите 0 или 1.\n";
-         return 1;
+    //return 1; // 1 - исправность
+};
+
+bool ins_prepare() {    
+    while ( (lambda0 == 0) & (phi0 == 0) ) {};
+    cout << "ИНС: подготовка завершена.\n" << endl;
+    return 1;
+};
+
+void ins() {
+    ins_self_check();     // самоконтроль
+    cout << "ИНС: подготовка...\n";
+    while (!ins_prepare()) {}  // подготовка
+    timer(std::chrono::seconds(3));
+    cout << "ИНС: готовность.\n";
+    cout << "ИНС: переключение в режим навигации.\n";
+};
+
+/* ---------- СНС ---------- */
+// самоконтроль
+void sns_self_check() {
+    cout << "СНС: тест-контроль устройств ИНС 20 сек...\n";
+
+    timer(std::chrono::seconds(2));
+    bool check = 1;
+
+    if (check == 1) {
+        cout << "СНС: исправность, работа, синхронизация\n";
     }
+    //return 1; // 1 - исправность
+};
 
-    on = 1;
-    std::thread t1(ins_self_check);
-    std::thread t2(sns_self_check);
-    t1.join();
-    t2.join();
+void sns_navigation() {
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(0, 0.02);
+    mtx.lock();
+    if ( (lambda0 == 0) & (phi0 == 0) ) {
+        lambda0 = 47;
+        phi0 = 56;
+    }
+    else {
+        lambda0 += distribution(generator);
+        phi0 += distribution(generator);
+    }
+    mtx.unlock();
+};
 
-    cout << to_string(lambda0) << endl;
-    cout << to_string(phi0) << endl;
-    std::thread t3(sns_navigation, std::ref(lambda0), std::ref(phi0));
-    t3.join();
-    cout << to_string(lambda0) << endl;
-    cout << to_string(phi0) << endl;
+void sns() {
+    sns_self_check();
+    timer(std::chrono::seconds(3));
+    if (stls >= 4) {
+        cout << "СНС: переключение в режим навигации.\n";
+        sns_navigation();
+    }   
+}
 
-    cout << endl;
-
-
-
+/* ---------- Передача данных ИНС и СНС ---------- */
+void send_ns_data() {
     struct sockaddr_in adr, oth;
     memset((char *)&adr, 0, sizeof(adr));
     adr.sin_family = AF_INET;
@@ -341,42 +326,50 @@ int main(int argc, char *argv[])
         perror("binding error");
     }
 
-    // data
-    ARINC429_BCD_UNION bcd;
-    ARINC426_BNR_UNION bnr;
-
-    bcd.arinc429_bcd.label = 200;
-    bcd.arinc429_bcd.SDI = 1;
-    bcd.arinc429_bcd.empt1 = 1;
-    bcd.arinc429_bcd.empt2 = 1;
-    bcd.arinc429_bcd.hrs = 29;
-    bcd.arinc429_bcd.min = 40;
-    bcd.arinc429_bcd.sec = 55;
-    bcd.arinc429_bcd.SSM = 3;
-    bcd.arinc429_bcd.P = 1;
-
-/*
-    bnr.label = 201;
-    bnr.SDI = 1;
-    bnr.higehst = 252;
-    bnr.sign = 1;
-    bnr.SSM = 3;
-    bnr.P = 1;
-*/
-
-    cout << "arinc429 bcd: " << sizeof(bcd) << " byte" << endl;
-    cout << "arinc429 bnr: " << sizeof(bnr) << " byte" << endl;
-    /*
-    cout << "arinc429 discrete: " << sizeof(discrete) << " byte" << endl;
-    cout << "mil1553 data: " << sizeof(ml_data) << " byte" << endl;
-    cout << "mil1553 cmd: " << sizeof(cmd) << " byte" << endl;
-    cout << "mil1553 answer: " << sizeof(answer) << " byte" << endl;
-    */
-
     // send data
-    Timer timer;
+    Timer timer_ins;
     bool a = 1;
     while (a) {
-        timer.add(std::chrono::seconds(1), send_data, s, adr, &bcd.Word, sizeof(bcd.Word));
+        timer_ins.add(std::chrono::milliseconds(1000), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
     }
+}
+
+// реализация
+int main(int argc, char *argv[])
+{
+    cout << "start\n" << endl;
+
+    cout << "подача питания?\n" << endl;
+    bool on = 0;
+    string on_s = "";
+    cin >> on_s;
+    if (on_s == "0") {
+        on = 0;
+        return 1;
+    }
+    else if (on_s != "1") {
+         cout << "введите 0 или 1.\n";
+         return 1;
+    }
+
+    on = 1;
+
+    cout << to_string(lambda0) << endl;
+    cout << to_string(phi0) << endl;
+    
+    std::thread t1(ins);
+    std::thread t2(sns);
+    std::thread t3(send_ns_data);
+    t1.join();
+    t2.join();
+    t3.join();
+
+    cout << to_string(lambda0) << endl;
+    cout << to_string(phi0) << endl;
+
+    cout << endl;
+
+
+
+    
 }
