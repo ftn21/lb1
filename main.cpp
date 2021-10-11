@@ -28,6 +28,7 @@ using namespace std;
 
 float lambda0 = 56;
 float phi0 = 47;
+int stls = 4;
 mutex mtx;
 
 // самоконтроль
@@ -38,33 +39,30 @@ void ins_self_check() {
     bool check = 1;
 
     if (check == 1) {
-        cout << "ИНС: Исправность ИНС\n";
-    }
-    else {
-        cout << "ИНС: Нет начальных данных";
+        cout << "ИНС: Исправность ИНС.\n";
+        cout << "ИНС: Нет начальных данных.\n";
     }
     //return 1; // 1 - исправность
 };
 
 bool ins_prepare() {
-    cout << "ИНС: подготовка 120 сек...\n";
+    cout << "ИНС: подготовка...\n";
     float l0 = lambda0;
     float f0 = phi0;
-    timer(std::chrono::seconds(2));
     
-    mtx.lock();
     if ( (l0 != lambda0) & (f0 != phi0) ) {
         cout << "ИНС: подготовка завершена.\n" << endl;
         return 1;
     };
-    mtx.unlock();
+
 };
 
 void ins() {
-    ins_self_check();
-    if (ins_prepare()) {
-        cout << "Переключение в режим навигации.\n";
-    }
+    ins_self_check();     // самоконтроль
+    while (!ins_prepare()) {}  // подготовка
+    timer(std::chrono::seconds(3));
+    cout << "ИНС: готовность.\n";
+    cout << "ИНС: переключение в режим навигации.\n";
 };
 
 /* ---------- СНС ---------- */
@@ -81,15 +79,24 @@ void sns_self_check() {
     //return 1; // 1 - исправность
 };
 
-void sns_navigation(float &longtitude, float &latitude) {
+void sns_navigation() {
     std::default_random_engine generator;
-    std::normal_distribution<double> distribution(0, 0.2);
-    longtitude += distribution(generator);
-    latitude += distribution(generator);
+    std::normal_distribution<double> distribution(0, 0.02);
+    mtx.lock();
+    lambda0 += distribution(generator);
+    phi0 += distribution(generator);
+    mtx.unlock();
 };
 
 void sns() {
     sns_self_check();
+    timer(std::chrono::seconds(3));
+    if (stls >= 4) {
+        cout << "СНС: переключение в режим навигации.\n";
+    }
+    while (stls >= 4) {
+        sns_navigation();
+    }
     
 }
 
