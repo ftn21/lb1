@@ -232,6 +232,7 @@ void ins_self_check() {
         cout << "ИНС: Исправность ИНС.\n";
         cout << "ИНС: Нет начальных данных.\n";
 
+        mtx.lock();
         ins_state.dsc.label = 210;
         ins_state.dsc.SDI = 01;
         ins_state.dsc.prep_ZK = 0;
@@ -242,27 +243,85 @@ void ins_self_check() {
         ins_state.dsc.prep_scale = 1; // таблица 4а?
         ins_state.dsc.heat = 1;
         ins_state.dsc.termostat = 1;
-        ins_state.dsc.init_data = 0;
+        ins_state.dsc.init_data = 1;
         ins_state.dsc.H_abc = 0;
         ins_state.dsc.boost = 0;
         ins_state.dsc.ready = 0;
         ins_state.dsc.P = 0;
+        mtx.unlock();
     }
     //return 1; // 1 - исправность
 };
 
 bool ins_prepare() {    
     while ( (lambda0 == 0) & (phi0 == 0) ) {};
+
+    mtx.lock();
+    ins_state.dsc.label = 210;
+    ins_state.dsc.SDI = 01;
+    ins_state.dsc.prep_ZK = 0;
+    ins_state.dsc.control = 0;
+    ins_state.dsc.navigation = 0;
+    ins_state.dsc.gyrocopmassing = 1; // 1 - ГК
+    ins_state.dsc.relaunch = 0;
+    ins_state.dsc.prep_scale = 1; // таблица 4а?
+    ins_state.dsc.heat = 1;
+    ins_state.dsc.termostat = 1;
+    ins_state.dsc.init_data = 0; // 0 - есть н.д.
+    ins_state.dsc.H_abc = 0;
+    ins_state.dsc.boost = 0;
+    ins_state.dsc.ready = 0;
+    ins_state.dsc.P = 0;
+    mtx.unlock();
+
     cout << "ИНС: подготовка завершена.\n" << endl;
     return 1;
 };
 
 void ins() {
     ins_self_check();     // самоконтроль
+
+    mtx.lock();
+    ins_state.dsc.label = 210;
+    ins_state.dsc.SDI = 01;
+    ins_state.dsc.prep_ZK = 0;
+    ins_state.dsc.control = 0;
+    ins_state.dsc.navigation = 0;
+    ins_state.dsc.gyrocopmassing = 1; // 1 - ГК
+    ins_state.dsc.relaunch = 0;
+    ins_state.dsc.prep_scale = 1; // таблица 4а?
+    ins_state.dsc.heat = 1;
+    ins_state.dsc.termostat = 1;
+    ins_state.dsc.init_data = 1;
+    ins_state.dsc.H_abc = 0;
+    ins_state.dsc.boost = 0;
+    ins_state.dsc.ready = 0;
+    ins_state.dsc.P = 0;
+    mtx.unlock();
+
     cout << "ИНС: подготовка...\n";
     while (!ins_prepare()) {}  // подготовка
     timer(std::chrono::seconds(3));
     cout << "ИНС: готовность.\n";
+
+    mtx.lock();
+    ins_state.dsc.label = 210;
+    ins_state.dsc.SDI = 01;
+    ins_state.dsc.prep_ZK = 0;
+    ins_state.dsc.control = 0;
+    ins_state.dsc.navigation = 0;
+    ins_state.dsc.gyrocopmassing = 1; // 1 - ГК
+    ins_state.dsc.relaunch = 0;
+    ins_state.dsc.prep_scale = 1; // таблица 4а?
+    ins_state.dsc.heat = 1;
+    ins_state.dsc.termostat = 1;
+    ins_state.dsc.init_data = 0;
+    ins_state.dsc.H_abc = 0;
+    ins_state.dsc.boost = 0;
+    ins_state.dsc.ready = 1; // 1 - готовность
+    ins_state.dsc.P = 0;
+    mtx.unlock();
+
     cout << "ИНС: переключение в режим навигации.\n";
 };
 
@@ -330,7 +389,7 @@ void send_ns_data() {
     Timer timer_ins;
     bool a = 1;
     while (a) {
-        timer_ins.add(std::chrono::milliseconds(1000), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
+        timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
     }
 }
 
