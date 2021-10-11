@@ -225,7 +225,7 @@ ARINC429_DISCRETE_UNION ins_state;
 void ins_self_check() {
     cout << "Тест-контроль устройств ИНС 20 сек...\n";
 
-    timer(std::chrono::seconds(2));
+    timer(std::chrono::seconds(5));
     bool check = 1;
 
     if (check == 1) {
@@ -301,7 +301,8 @@ void ins() {
 
     cout << "ИНС: подготовка...\n";
     while (!ins_prepare()) {}  // подготовка
-    timer(std::chrono::seconds(3));
+
+    timer(std::chrono::seconds(15));
     cout << "ИНС: готовность.\n";
 
     mtx.lock();
@@ -330,13 +331,12 @@ void ins() {
 void sns_self_check() {
     cout << "СНС: тест-контроль устройств ИНС 20 сек...\n";
 
-    timer(std::chrono::seconds(2));
+    timer(std::chrono::seconds(5));
     bool check = 1;
 
     if (check == 1) {
         cout << "СНС: исправность, работа, синхронизация\n";
     }
-    //return 1; // 1 - исправность
 };
 
 void sns_navigation() {
@@ -356,7 +356,7 @@ void sns_navigation() {
 
 void sns() {
     sns_self_check();
-    timer(std::chrono::seconds(3));
+    timer(std::chrono::seconds(15));
     if (stls >= 4) {
         cout << "СНС: переключение в режим навигации.\n";
         sns_navigation();
@@ -389,7 +389,7 @@ void send_ns_data() {
     Timer timer_ins;
     bool a = 1;
     while (a) {
-        timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
+        timer_ins.add(std::chrono::milliseconds(1000), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
     }
 }
 
