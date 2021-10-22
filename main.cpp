@@ -48,7 +48,7 @@ union ARINC426_BNR_UNION {
 
         unsigned short SSM : 2;
         unsigned short P : 1;
-    };
+    } bnr;
     unsigned int Word;
 }; 
 #pragma pack(pop)
@@ -71,7 +71,7 @@ union ARINC429_BCD_UNION
 
         unsigned short SSM : 2;
         unsigned short P : 1;
-    } arinc429_bcd;
+    } bcd;
     unsigned int Word;
 };
 #pragma pack(pop)
@@ -173,6 +173,26 @@ union MIL1553_ANSWER_WORD_UNION
 };
 #pragma pack(pop)
 
+// структура данных ИНС
+// BNR
+#pragma pack(push,1)
+struct INS_DATA_STRUCTURE
+{
+    ARINC426_BNR_UNION latitude;     // широта
+    ARINC426_BNR_UNION longtitude;   // долгота
+    ARINC426_BNR_UNION height;       // высота
+    ARINC426_BNR_UNION heading_true; // курс истинный
+    ARINC426_BNR_UNION pitch;        // тангаж
+    ARINC426_BNR_UNION roll;         // крен
+    ARINC426_BNR_UNION speed_NS;     // скорость свер/юг
+    ARINC426_BNR_UNION speed_WE;     // скорость восток/запад
+    ARINC426_BNR_UNION speed_vert;   // скорость вертикальная инерциальная
+    ARINC426_BNR_UNION accele_ax;    // ускорение продольное, ax
+    ARINC426_BNR_UNION accele_az;    // ускорение поперечное, az
+    ARINC426_BNR_UNION accel_ay;     // ускорение нормальное, ay
+};
+#pragma pack(pop)
+
 /* таймер */
 
 class Timer
@@ -220,6 +240,8 @@ void timer(std::chrono::seconds delay) {
 
 // слово состояния ИНС
 ARINC429_DISCRETE_UNION ins_state;
+// слово данных ИНС
+INS_DATA_STRUCTURE ins_data;
 
 // самоконтроль
 void ins_self_check() {
@@ -346,6 +368,129 @@ void sns_navigation() {
     if ( (lambda0 == 0) & (phi0 == 0) ) {
         lambda0 = 47;
         phi0 = 56;
+        
+        // широта
+        ARINC426_BNR_UNION temporary;  // временная локальная переменная
+        // добавить очистку temporary (зануление всех полей)
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.latitude.Word = temporary.Word;
+
+        // долгота
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.longtitude.Word = temporary.Word;
+
+        // высота
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.height.Word = temporary.Word;
+
+        // курс истинный
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.heading_true.Word = temporary.Word;
+
+        // угол тангажа
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.pitch.Word = temporary.Word;
+
+        // угол крена
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.roll.Word = temporary.Word;
+
+        // скорость север/юг
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.speed_NS.Word = temporary.Word;
+
+        // скорость восток/запад
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.speed_WE.Word = temporary.Word;
+
+        // скорость вертикальная инерциальная
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.speed_vert.Word = temporary.Word;
+
+        // ускорение продольное ax
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.accele_ax.Word = temporary.Word;
+
+        // ускорение поперечное az
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.accele_az.Word = temporary.Word;
+
+        // ускорение нормальное ay
+        temporary.bnr.label = 8;
+        temporary.bnr.SDI = 2;
+        temporary.bnr.higehst = 18;
+        temporary.bnr.sign = 1;
+        temporary.bnr.SSM = 2;
+        temporary.bnr.P = 1;
+
+        ins_data.accel_ay.Word = temporary.Word;
+
     }
     else {
         lambda0 += distribution(generator);
@@ -389,7 +534,9 @@ void send_ns_data() {
     Timer timer_ins;
     bool a = 1;
     while (a) {
+        mtx.lock();
         timer_ins.add(std::chrono::milliseconds(1000), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
+        mtx.unlock();
     }
 }
 
