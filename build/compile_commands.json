@@ -1,7 +1,7 @@
 [
 {
-  "directory": "/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb1/build",
-  "command": "/usr/bin/c++     -pthread -g   -o CMakeFiles/lb1.dir/main.cpp.o -c /home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb1/main.cpp",
-  "file": "/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb1/main.cpp"
+  "directory": "/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb/build",
+  "command": "/usr/bin/c++     -pthread -g   -o CMakeFiles/lb1.dir/main.cpp.o -c /home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb/main.cpp",
+  "file": "/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb/main.cpp"
 }
 ]

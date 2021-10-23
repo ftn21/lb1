@@ -193,6 +193,24 @@ struct INS_DATA_STRUCTURE
 };
 #pragma pack(pop)
 
+// структура хранения данных ИНС
+struct INS_DATA_float
+{
+    float latitude;     // широта
+    float longtitude;   // долгота
+    float height;       // высота
+    float heading_true; // курс истинный
+    float pitch;        // тангаж
+    float roll;         // крен
+    float speed_NS;     // скорость свер/юг
+    float speed_WE;     // скорость восток/запад
+    float speed_vert;   // скорость вертикальная инерциальная
+    float accele_ax;    // ускорение продольное, ax
+    float accele_az;    // ускорение поперечное, az
+    float accel_ay;     // ускорение нормальное, ay
+};
+INS_DATA_float ins_float;
+
 /* таймер */
 
 class Timer
@@ -300,6 +318,194 @@ bool ins_prepare() {
     return 1;
 };
 
+void ins_navigation() {
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(0, 0.002);
+    mtx.lock();
+    if ( (ins_float.latitude == 0) & (ins_float.longtitude == 0) ) {
+        ins_float.longtitude = 47;
+        ins_float.latitude = 56;
+        ins_float.height = 2000;       
+        ins_float.heading_true = 20000; 
+        ins_float.pitch = 5;        
+        ins_float.roll = 0;         
+        ins_float.speed_NS = 1000;     
+        ins_float.speed_WE = 1000;     
+        ins_float.speed_vert = 70;   
+        ins_float.accele_ax = 5;    
+        ins_float.accele_az = 0;   
+        ins_float.accel_ay = 0;     
+    }
+    else {
+        ins_float.longtitude += distribution(generator);
+        ins_float.latitude += distribution(generator);
+        ins_float.height += distribution(generator);       
+        ins_float.heading_true += distribution(generator); 
+        ins_float.pitch += distribution(generator);        
+        ins_float.roll += distribution(generator);         
+        ins_float.speed_NS += distribution(generator);     
+        ins_float.speed_WE += distribution(generator);     
+        ins_float.speed_vert += distribution(generator);   
+        ins_float.accele_ax += distribution(generator);    
+        ins_float.accele_az += distribution(generator);   
+        ins_float.accel_ay += distribution(generator);
+    } 
+    mtx.unlock();
+};
+
+void ins_forming_dataWord() {
+    mtx.lock();
+    // очистка мусора
+    ins_data.latitude.Word = 0;
+    ins_data.longtitude.Word = 0;
+    ins_data.height.Word = 0;
+    ins_data.heading_true.Word = 0;
+    ins_data.pitch.Word = 0;
+    ins_data.roll.Word = 0;
+    ins_data.speed_NS.Word = 0;
+    ins_data.speed_WE.Word = 0;
+    ins_data.speed_vert.Word = 0;
+    ins_data.accele_ax.Word = 0;
+    ins_data.accele_az.Word = 0;
+    ins_data.accel_ay.Word = 0;
+
+    // широта
+    ARINC426_BNR_UNION temporary;  // временная локальная переменная
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.latitude.Word = temporary.Word;
+
+    // долгота
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.longtitude.Word = temporary.Word;
+
+    // высота
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.height.Word = temporary.Word;
+
+    // курс истинный
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.heading_true.Word = temporary.Word;
+
+    // угол тангажа
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.pitch.Word = temporary.Word;
+
+    // угол крена
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.roll.Word = temporary.Word;
+
+    // скорость север/юг
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.speed_NS.Word = temporary.Word;
+
+    // скорость восток/запад
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.speed_WE.Word = temporary.Word;
+
+    // скорость вертикальная инерциальная
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.speed_vert.Word = temporary.Word;
+
+    // ускорение продольное ax
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.accele_ax.Word = temporary.Word;
+
+    // ускорение поперечное az
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.accele_az.Word = temporary.Word;
+
+    // ускорение нормальное ay
+    temporary.Word = 0;
+    temporary.bnr.label = 8;
+    temporary.bnr.SDI = 2;
+    temporary.bnr.higehst = 18;
+    temporary.bnr.sign = 1;
+    temporary.bnr.SSM = 2;
+    temporary.bnr.P = 1;
+
+    ins_data.accel_ay.Word = temporary.Word;
+
+    temporary.Word = 0;
+    mtx.unlock();
+};
+
 void ins() {
     ins_self_check();     // самоконтроль
 
@@ -368,129 +574,6 @@ void sns_navigation() {
     if ( (lambda0 == 0) & (phi0 == 0) ) {
         lambda0 = 47;
         phi0 = 56;
-        
-        // широта
-        ARINC426_BNR_UNION temporary;  // временная локальная переменная
-        // добавить очистку temporary (зануление всех полей)
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.latitude.Word = temporary.Word;
-
-        // долгота
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.longtitude.Word = temporary.Word;
-
-        // высота
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.height.Word = temporary.Word;
-
-        // курс истинный
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.heading_true.Word = temporary.Word;
-
-        // угол тангажа
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.pitch.Word = temporary.Word;
-
-        // угол крена
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.roll.Word = temporary.Word;
-
-        // скорость север/юг
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.speed_NS.Word = temporary.Word;
-
-        // скорость восток/запад
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.speed_WE.Word = temporary.Word;
-
-        // скорость вертикальная инерциальная
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.speed_vert.Word = temporary.Word;
-
-        // ускорение продольное ax
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.accele_ax.Word = temporary.Word;
-
-        // ускорение поперечное az
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.accele_az.Word = temporary.Word;
-
-        // ускорение нормальное ay
-        temporary.bnr.label = 8;
-        temporary.bnr.SDI = 2;
-        temporary.bnr.higehst = 18;
-        temporary.bnr.sign = 1;
-        temporary.bnr.SSM = 2;
-        temporary.bnr.P = 1;
-
-        ins_data.accel_ay.Word = temporary.Word;
-
     }
     else {
         lambda0 += distribution(generator);
