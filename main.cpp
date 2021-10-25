@@ -16,6 +16,8 @@
 #include <thread>
 #include <mutex>
 #include <random>
+#include <math.h>
+#include <algorithm>
 
 using namespace std;
 
@@ -40,10 +42,9 @@ union ARINC426_BNR_UNION {
     struct ARINC429_BNR_STRUCTURE
     {
         unsigned short label : 8; // он же адрес
-        unsigned short SDI : 2;
 
         // data
-        unsigned int higehst : 18; // 65536 ??
+        unsigned int data : 20; // 65536 ??
         unsigned short sign : 1;
 
         unsigned short SSM : 2;
@@ -254,6 +255,29 @@ void timer(std::chrono::seconds delay) {
         return;
 };
 
+int codering(float num, int l, float diap) {
+// num - число для кодирования
+// l - количество значащих разрядов
+int q = 0; // результат
+float m = pow(num, 1/(l-1)); // основание сс
+int res_m[l];
+int temp, k = 0;
+
+for(int counter = diap; counter >= 1; counter /= m)
+{
+    temp = num / counter;
+    num = round(std::fmod(num, counter)); // остаток от деления
+    res_m[k] = temp;
+    k++;
+}
+
+std::reverse(res_m, res_m+l);
+for (int i = 0; i < l; i++) {
+    q += res_m[i]*pow(2, i-1);
+}
+return q;
+};
+
 /* ---------- ИНС ---------- */
 
 // слово состояния ИНС
@@ -372,9 +396,8 @@ void ins_forming_dataWord() {
     // широта
     ARINC426_BNR_UNION temporary;  // временная локальная переменная
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.label = 0x13;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -384,8 +407,7 @@ void ins_forming_dataWord() {
     // долгота
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -395,8 +417,7 @@ void ins_forming_dataWord() {
     // высота
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -406,8 +427,7 @@ void ins_forming_dataWord() {
     // курс истинный
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -417,8 +437,7 @@ void ins_forming_dataWord() {
     // угол тангажа
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -428,8 +447,7 @@ void ins_forming_dataWord() {
     // угол крена
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -439,8 +457,7 @@ void ins_forming_dataWord() {
     // скорость север/юг
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -450,8 +467,7 @@ void ins_forming_dataWord() {
     // скорость восток/запад
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -461,8 +477,7 @@ void ins_forming_dataWord() {
     // скорость вертикальная инерциальная
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -472,8 +487,7 @@ void ins_forming_dataWord() {
     // ускорение продольное ax
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -483,8 +497,7 @@ void ins_forming_dataWord() {
     // ускорение поперечное az
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -494,8 +507,7 @@ void ins_forming_dataWord() {
     // ускорение нормальное ay
     temporary.Word = 0;
     temporary.bnr.label = 8;
-    temporary.bnr.SDI = 2;
-    temporary.bnr.higehst = 18;
+    temporary.bnr.data = 18;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
