@@ -338,50 +338,9 @@ public:
 
 // объявление функций
 
-void send_data(int socket, struct sockaddr_in addr, void* data, int dsize) 
-{
-    char buf[sizeof(dsize)];
-    memcpy(buf, data, sizeof(buf));
-    if (sendto(socket, buf, dsize, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1)
-		{
-			perror("sending error");
-		}
-    return;
-};
-
-void timer(std::chrono::seconds delay) {
-    auto  start = std::chrono::system_clock::now();
-        auto  current = std::chrono::system_clock::now();
-        while ((current - start) < delay) 
-        {
-            current = std::chrono::system_clock::now();
-        }
-        return;
-};
-
-int codering(float num, int l, float diap) {
-// num - число для кодирования
-// l - количество значащих разрядов
-int q = 0; // результат
-float m = pow(num, 1/(l-1)); // основание сс
-int res_m[l];
-int temp, k = 0;
-
-for(int counter = diap; counter >= 1; counter /= m)
-{
-    temp = num / counter;
-    num = round(std::fmod(num, counter)); // остаток от деления
-    res_m[k] = temp;
-    k++;
-}
-
-std::reverse(res_m, res_m+l);
-for (int i = 0; i < l; i++) 
-{
-    q += res_m[i]*pow(2, i-1);
-}
-return q;
-};
+void send_data(int socket, struct sockaddr_in addr, void* data, int dsize);
+void timer(std::chrono::seconds delay); 
+int codering(double max_value, int max_digit, int digit, double value);
 
 /* ---------- ИНС ---------- */
 
@@ -390,7 +349,60 @@ ARINC429_DISCRETE_UNION ins_state;
 // слово данных ИНС
 INS_DATA_STRUCTURE ins_data;
 
-// самоконтроль
+void ins_self_check();  // самоконтроль
+bool ins_prepare();  // подготовка
+void ins_navigation();  // навигация
+void ins_forming_dataWord();  // формирование слова данных
+void ins();  // функция для ИНС
+
+/* ---------- СНС ---------- */
+
+// слово признаков СРНС
+ARINC429_SRNS_DISCRETE_UNION sns_state;
+
+void sns_self_check();  // самоконтроль
+void sns_navigation();  // навигация
+void sns();  // функция для СНС
+
+/* ---------- Передача данных ИНС и СНС ---------- */
+void send_ns_data();
+
+// реализация
+int main(int argc, char *argv[])
+{
+    cout << "start\n" << endl;
+
+    cout << "подача питания?\n" << endl;
+    bool on = 0;
+    string on_s = "";
+    cin >> on_s;
+    if (on_s == "0") {
+        on = 0;
+        return 1;
+    }
+    else if (on_s != "1") {
+         cout << "введите 0 или 1.\n";
+         return 1;
+    }
+
+    on = 1;
+    
+    std::thread t1(ins);
+    std::thread t2(sns);
+    std::thread t3(send_ns_data);
+    t1.join();
+    t2.join();
+    t3.join();
+
+    cout << endl;
+    
+}
+
+
+// реализация функций
+
+// ИНС
+
 void ins_self_check() {
     cout << "Тест-контроль устройств ИНС 20 сек...\n";
 
@@ -678,12 +690,8 @@ void ins() {
     }
 };
 
-/* ---------- СНС ---------- */
+// СНС
 
-// слово признаков СРНС
-ARINC429_SRNS_DISCRETE_UNION sns_state;
-
-// самоконтроль
 void sns_self_check() {
     cout << "СНС: тест-контроль устройств СНС 10 сек...\n";
 
@@ -736,9 +744,65 @@ void sns() {
         sns_navigation();
         // формирование слов данных
     }   
+};
+
+// отправка данных
+void send_data(int socket, struct sockaddr_in addr, void* data, int dsize) 
+{
+    char buf[sizeof(dsize)];
+    memcpy(buf, data, sizeof(buf));
+    if (sendto(socket, buf, dsize, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1)
+		{
+			perror("sending error");
+		}
+    return;
+};
+
+// таймер
+void timer(std::chrono::seconds delay) {
+    auto  start = std::chrono::system_clock::now();
+        auto  current = std::chrono::system_clock::now();
+        while ((current - start) < delay) 
+        {
+            current = std::chrono::system_clock::now();
+        }
+        return;
+};
+
+// кодировка данных
+int codering(double max_value, int max_digit, int digit, double value) {
+	// max_value - максимальное значение в диапазоне / 2
+	// max_digit - старший разряд
+	// digit - кол-во разрядов
+	// value - значение
+	int* arr = new int[max_digit]();
+	int last_i = 0;
+	float sum = 0;
+	for (int i = 0; i <= digit - 1; i++)
+	{
+		sum = sum + (max_value / pow(2, i));
+		if (sum <= value) {
+			arr[i] = 1;
+		}
+		else {
+			arr[i] = 0;
+			sum = sum - (max_value / pow(2, i));
+		}
+		last_i = i;
+	}
+	if (last_i < max_digit - 1)
+		for (int i = last_i; i < max_digit; ++i)
+			arr[i] = 0;
+
+	int res = 0;
+	std::reverse(arr, arr+20);
+	for (int i=0; i<20; i++){
+		res += pow(2, i)*arr[i];
+	}
+	return res;
 }
 
-/* ---------- Передача данных ИНС и СНС ---------- */
+// функция передачи навигационных данных (СНС+ИНС) для третьего потока
 void send_ns_data() {
     struct sockaddr_in adr, oth;
     memset((char *)&adr, 0, sizeof(adr));
@@ -771,35 +835,4 @@ void send_ns_data() {
         timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_state.Word, sizeof(sns_state.Word));
         mtx.unlock();
     }
-}
-
-// реализация
-int main(int argc, char *argv[])
-{
-    cout << "start\n" << endl;
-
-    cout << "подача питания?\n" << endl;
-    bool on = 0;
-    string on_s = "";
-    cin >> on_s;
-    if (on_s == "0") {
-        on = 0;
-        return 1;
-    }
-    else if (on_s != "1") {
-         cout << "введите 0 или 1.\n";
-         return 1;
-    }
-
-    on = 1;
-    
-    std::thread t1(ins);
-    std::thread t2(sns);
-    std::thread t3(send_ns_data);
-    t1.join();
-    t2.join();
-    t3.join();
-
-    cout << endl;
-    
-}
+};
