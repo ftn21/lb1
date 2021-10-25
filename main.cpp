@@ -83,8 +83,9 @@ union ARINC429_DISCRETE_UNION
 {
     struct ARINC429_DISCRETE_STRUCTURE
     {
-        unsigned short label : 8; // он же адрес
-        unsigned short SDI : 2;
+        unsigned short label : 8; // он же адрес 
+        unsigned short zapros_init_data : 1;
+        unsigned short SDI : 1;
 
         // data
         unsigned short prep_ZK : 1; // подготовка по ЗК
@@ -106,6 +107,92 @@ union ARINC429_DISCRETE_UNION
         unsigned short P : 1;
     } dsc;
     unsigned int Word;
+};
+#pragma pack(pop)
+
+// SNS SRNS DISCRETE
+#pragma pack(push,1)
+union ARINC429_SRNS_DISCRETE_UNION
+{
+    struct ARINC429_SRNS_DISCRETE_STRUCTURE
+    {
+        unsigned short label : 8; // он же адрес 
+        unsigned short zapros_init_data : 1;
+        unsigned short sns_type : 3;
+
+        // data
+        unsigned short GPS_almanach : 1; 
+        unsigned short GLONASS_almanach : 1;
+        unsigned short work_mode : 2;
+        unsigned short submode : 1; 
+        unsigned short time_sign : 1;          
+        unsigned short empty1 : 2;
+        unsigned short diff_mode : 1;
+        unsigned short failure : 1;
+        unsigned short signal_limit : 1;     
+        unsigned short coord_system : 2; 
+        unsigned short empty2 : 4;
+        unsigned short state_matrix : 2;
+
+        unsigned short P : 1;
+    } dsc;
+    unsigned int Word;
+};
+#pragma pack(pop)
+
+// SNS DATE DISCRETE
+#pragma pack(push,1)
+union ARINC429_SNS_DATE_DISCRETE_UNION
+{
+    struct ARINC429_SNS_DATE_DISCRETE_STRUCTURE
+    {
+        unsigned short label : 8;
+        unsigned short empty1 : 2;
+        unsigned short year : 4;
+        unsigned short empty2 : 4;
+        unsigned short month : 4; 
+        unsigned short day : 4;
+        unsigned short empty3 : 3;
+        unsigned short state_matrix : 2;
+        unsigned short P : 1;
+    } dsc;
+    unsigned int Word;
+};
+#pragma pack(pop)
+
+// SNS DATA DISCRETE
+#pragma pack(push,1)
+union ARINC429_SNS_DATA_DISCRETE_UNION
+{
+    struct ARINC429_SNS_DATA_DISCRETE_STRUCTURE
+    {
+        unsigned short label : 8;
+        unsigned short data : 20;
+        unsigned short empty : 3;
+        unsigned short P : 1;
+    } dsc;
+    unsigned int Word;
+};
+#pragma pack(pop)
+
+// структура данных СНС
+#pragma pack(push,1)
+struct SNS_DATA_STRUCTURE
+{
+    ARINC429_SNS_DATA_DISCRETE_UNION hiest;
+    ARINC429_SNS_DATA_DISCRETE_UNION HDOP;
+    ARINC429_SNS_DATA_DISCRETE_UNION VDOP;
+    ARINC429_SNS_DATA_DISCRETE_UNION PU;  // путевой угол
+    ARINC429_SNS_DATA_DISCRETE_UNION R;  // текущая широта
+    ARINC429_SNS_DATA_DISCRETE_UNION Rt;  // текущая широта (точно)
+    ARINC429_SNS_DATA_DISCRETE_UNION L;  // текущая долгота
+    ARINC429_SNS_DATA_DISCRETE_UNION Lt;  // текущая долгота (точно)
+    ARINC429_SNS_DATA_DISCRETE_UNION delay;  // задержка выдачи обновленных НП
+    ARINC429_SNS_DATA_DISCRETE_UNION UTC_time;  // текущее время UTC
+    ARINC429_SNS_DATA_DISCRETE_UNION UTC_time_minor;  // текущее время UTC (младшие разряды)
+    ARINC429_SNS_DATA_DISCRETE_UNION Vh;  // вертикальная скорость
+    ARINC429_SNS_DATE_DISCRETE_UNION date;  // дата
+    ARINC429_SRNS_DISCRETE_UNION srns;  // признаки СРНС
 };
 #pragma pack(pop)
 
@@ -232,6 +319,23 @@ public:
     };
 };
 
+class Timer_forming
+{
+public:
+    Timer_forming(){};
+    void add(std::chrono::microseconds delay, void (*callback)())
+    {
+        auto  start = std::chrono::system_clock::now();
+        auto  current = std::chrono::system_clock::now();
+        while ((current - start) < delay) 
+        {
+            current = std::chrono::system_clock::now();
+        }
+        callback();
+        return;
+    };
+};
+
 // объявление функций
 
 void send_data(int socket, struct sockaddr_in addr, void* data, int dsize) 
@@ -272,7 +376,8 @@ for(int counter = diap; counter >= 1; counter /= m)
 }
 
 std::reverse(res_m, res_m+l);
-for (int i = 0; i < l; i++) {
+for (int i = 0; i < l; i++) 
+{
     q += res_m[i]*pow(2, i-1);
 }
 return q;
@@ -392,7 +497,6 @@ void ins_forming_dataWord() {
     ins_data.accele_ax.Word = 0;
     ins_data.accele_az.Word = 0;
     ins_data.accel_ay.Word = 0;
-
     // широта
     ARINC426_BNR_UNION temporary;  // временная локальная переменная
     temporary.Word = 0;
@@ -406,8 +510,8 @@ void ins_forming_dataWord() {
 
     // долгота
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0x93;
+    temporary.bnr.data = ins_float.latitude;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -416,8 +520,8 @@ void ins_forming_dataWord() {
 
     // высота
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0x8F;
+    temporary.bnr.data = ins_float.longtitude;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -426,8 +530,8 @@ void ins_forming_dataWord() {
 
     // курс истинный
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0x33;
+    temporary.bnr.data = ins_float.heading_true;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -436,8 +540,8 @@ void ins_forming_dataWord() {
 
     // угол тангажа
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0x2B;
+    temporary.bnr.data = ins_float.pitch;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -446,8 +550,8 @@ void ins_forming_dataWord() {
 
     // угол крена
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0xAB;
+    temporary.bnr.data = ins_float.roll;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -456,8 +560,8 @@ void ins_forming_dataWord() {
 
     // скорость север/юг
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0x6F;
+    temporary.bnr.data = ins_float.speed_NS;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -466,8 +570,8 @@ void ins_forming_dataWord() {
 
     // скорость восток/запад
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0xEF;
+    temporary.bnr.data = ins_float.speed_WE;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -476,8 +580,8 @@ void ins_forming_dataWord() {
 
     // скорость вертикальная инерциальная
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0xAF;
+    temporary.bnr.data = ins_float.speed_vert;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -486,8 +590,8 @@ void ins_forming_dataWord() {
 
     // ускорение продольное ax
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0x9B;
+    temporary.bnr.data = ins_float.accele_ax;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -496,8 +600,8 @@ void ins_forming_dataWord() {
 
     // ускорение поперечное az
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0x5B;
+    temporary.bnr.data = ins_float.accele_az;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -506,8 +610,8 @@ void ins_forming_dataWord() {
 
     // ускорение нормальное ay
     temporary.Word = 0;
-    temporary.bnr.label = 8;
-    temporary.bnr.data = 18;
+    temporary.bnr.label = 0xDB;
+    temporary.bnr.data = ins_float.accel_ay;
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -515,6 +619,7 @@ void ins_forming_dataWord() {
     ins_data.accel_ay.Word = temporary.Word;
 
     temporary.Word = 0;
+
     mtx.unlock();
 };
 
@@ -564,18 +669,47 @@ void ins() {
     mtx.unlock();
 
     cout << "ИНС: переключение в режим навигации.\n";
+    
+    // forming data
+    Timer_forming timer_data;
+    bool a = 1;
+    while (a) {
+        timer_data.add(std::chrono::microseconds(2500), ins_forming_dataWord);
+    }
 };
 
 /* ---------- СНС ---------- */
+
+// слово признаков СРНС
+ARINC429_SRNS_DISCRETE_UNION sns_state;
+
 // самоконтроль
 void sns_self_check() {
-    cout << "СНС: тест-контроль устройств ИНС 20 сек...\n";
+    cout << "СНС: тест-контроль устройств СНС 10 сек...\n";
 
-    timer(std::chrono::seconds(5));
+    timer(std::chrono::seconds(3));
     bool check = 1;
 
     if (check == 1) {
         cout << "СНС: исправность, работа, синхронизация\n";
+        mtx.lock();
+        sns_state.dsc.label = 0273;  
+        sns_state.dsc.zapros_init_data = 0;
+        sns_state.dsc.sns_type = 0;
+        sns_state.dsc.GPS_almanach = 0; 
+        sns_state.dsc.GLONASS_almanach = 0;
+        sns_state.dsc.work_mode = 2;
+        sns_state.dsc.submode = 1; 
+        sns_state.dsc.time_sign = 0;          
+        sns_state.dsc.empty1 = 0;
+        sns_state.dsc.diff_mode = 0;
+        sns_state.dsc.failure = 0;
+        sns_state.dsc.signal_limit = 0;     
+        sns_state.dsc.coord_system = 0; 
+        sns_state.dsc.empty2 = 0;
+        sns_state.dsc.state_matrix = 0;
+        sns_state.dsc.P = 1;
+        mtx.unlock();
     }
 };
 
@@ -600,6 +734,7 @@ void sns() {
     if (stls >= 4) {
         cout << "СНС: переключение в режим навигации.\n";
         sns_navigation();
+        // формирование слов данных
     }   
 }
 
@@ -627,10 +762,13 @@ void send_ns_data() {
 
     // send data
     Timer timer_ins;
+    Timer timer_sns;
     bool a = 1;
     while (a) {
         mtx.lock();
         timer_ins.add(std::chrono::milliseconds(1000), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
+        timer_ins.add(std::chrono::milliseconds(1000), send_data, s, adr, &ins_data, sizeof(ins_state));
+        timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_state.Word, sizeof(sns_state.Word));
         mtx.unlock();
     }
 }
@@ -654,9 +792,6 @@ int main(int argc, char *argv[])
     }
 
     on = 1;
-
-    cout << to_string(lambda0) << endl;
-    cout << to_string(phi0) << endl;
     
     std::thread t1(ins);
     std::thread t2(sns);
@@ -665,12 +800,6 @@ int main(int argc, char *argv[])
     t2.join();
     t3.join();
 
-    cout << to_string(lambda0) << endl;
-    cout << to_string(phi0) << endl;
-
     cout << endl;
-
-
-
     
 }
