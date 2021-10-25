@@ -513,7 +513,7 @@ void ins_forming_dataWord() {
     ARINC426_BNR_UNION temporary;  // временная локальная переменная
     temporary.Word = 0;
     temporary.bnr.label = 0x13;
-    temporary.bnr.data = 18;
+    temporary.bnr.data = codering(90, 20, 20, ins_float.latitude);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -523,7 +523,7 @@ void ins_forming_dataWord() {
     // долгота
     temporary.Word = 0;
     temporary.bnr.label = 0x93;
-    temporary.bnr.data = ins_float.latitude;
+    temporary.bnr.data = codering(90, 20, 20, ins_float.longtitude);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -533,7 +533,7 @@ void ins_forming_dataWord() {
     // высота
     temporary.Word = 0;
     temporary.bnr.label = 0x8F;
-    temporary.bnr.data = ins_float.longtitude;
+    temporary.bnr.data = codering(39950.7456, 19, 19, ins_float.height);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -543,7 +543,7 @@ void ins_forming_dataWord() {
     // курс истинный
     temporary.Word = 0;
     temporary.bnr.label = 0x33;
-    temporary.bnr.data = ins_float.heading_true;
+    temporary.bnr.data = codering(90, 16, 16, ins_float.heading_true);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -553,7 +553,7 @@ void ins_forming_dataWord() {
     // угол тангажа
     temporary.Word = 0;
     temporary.bnr.label = 0x2B;
-    temporary.bnr.data = ins_float.pitch;
+    temporary.bnr.data = codering(90, 16, 16, ins_float.pitch);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -563,7 +563,7 @@ void ins_forming_dataWord() {
     // угол крена
     temporary.Word = 0;
     temporary.bnr.label = 0xAB;
-    temporary.bnr.data = ins_float.roll;
+    temporary.bnr.data = codering(90, 16, 16, ins_float.roll);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -573,7 +573,7 @@ void ins_forming_dataWord() {
     // скорость север/юг
     temporary.Word = 0;
     temporary.bnr.label = 0x6F;
-    temporary.bnr.data = ins_float.speed_NS;
+    temporary.bnr.data = codering(2107.1644, 19, 19, ins_float.speed_NS);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -583,7 +583,7 @@ void ins_forming_dataWord() {
     // скорость восток/запад
     temporary.Word = 0;
     temporary.bnr.label = 0xEF;
-    temporary.bnr.data = ins_float.speed_WE;
+    temporary.bnr.data = codering(2107.1644, 19, 19, ins_float.speed_WE);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -593,7 +593,7 @@ void ins_forming_dataWord() {
     // скорость вертикальная инерциальная
     temporary.Word = 0;
     temporary.bnr.label = 0xAF;
-    temporary.bnr.data = ins_float.speed_vert;
+    temporary.bnr.data = codering(166.4614, 19, 19, ins_float.speed_vert);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -603,7 +603,7 @@ void ins_forming_dataWord() {
     // ускорение продольное ax
     temporary.Word = 0;
     temporary.bnr.label = 0x9B;
-    temporary.bnr.data = ins_float.accele_ax;
+    temporary.bnr.data = codering(4, 12, 12, ins_float.accele_ax);  // измеряется в g
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -613,7 +613,7 @@ void ins_forming_dataWord() {
     // ускорение поперечное az
     temporary.Word = 0;
     temporary.bnr.label = 0x5B;
-    temporary.bnr.data = ins_float.accele_az;
+    temporary.bnr.data = codering(4, 12, 12, ins_float.accele_az);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -623,7 +623,7 @@ void ins_forming_dataWord() {
     // ускорение нормальное ay
     temporary.Word = 0;
     temporary.bnr.label = 0xDB;
-    temporary.bnr.data = ins_float.accel_ay;
+    temporary.bnr.data = codering(4, 12, 12, ins_float.accel_ay);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -681,6 +681,7 @@ void ins() {
     mtx.unlock();
 
     cout << "ИНС: переключение в режим навигации.\n";
+    ins_navigation();
     
     // forming data
     Timer_forming timer_data;
