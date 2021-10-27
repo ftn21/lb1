@@ -339,11 +339,28 @@ public:
     };
 };
 
-class Timer_forming
+class Timer_forming_micro
 {
 public:
-    Timer_forming(){};
+    Timer_forming_micro(){};
     void add(std::chrono::microseconds delay, void (*callback)())
+    {
+        auto  start = std::chrono::system_clock::now();
+        auto  current = std::chrono::system_clock::now();
+        while ((current - start) < delay) 
+        {
+            current = std::chrono::system_clock::now();
+        }
+        callback();
+        return;
+    };
+};
+
+class Timer_forming_milli
+{
+public:
+    Timer_forming_milli(){};
+    void add(std::chrono::milliseconds delay, void (*callback)())
     {
         auto  start = std::chrono::system_clock::now();
         auto  current = std::chrono::system_clock::now();
@@ -705,7 +722,7 @@ void ins() {
     cout << "ИНС: переключение в режим навигации.\n";
 
     // navigation+forming data word
-    Timer_forming timer_data;
+    Timer_forming_micro timer_data;
     bool a = 1;
     while (a) {
         timer_data.add(std::chrono::microseconds(2500), ins_navigation);
@@ -798,6 +815,7 @@ void sns_navigation() {
         sns_decoded.date_day = 27;
     }
     mtx.unlock();
+    sns_forming_dataWord();
 };
 
 void sns_forming_dataWord() {
@@ -847,8 +865,12 @@ void sns() {
     timer(std::chrono::seconds(15));
     if (stls >= 4) {
         cout << "СНС: переключение в режим навигации.\n";
-        sns_navigation();
-        // формирование слов данных
+        // navigation+forming data word
+        Timer_forming_milli timer_data;
+        bool a = 1;
+        while (a) {
+            timer_data.add(std::chrono::milliseconds(100), sns_navigation);
+        }
     }   
 };
 
