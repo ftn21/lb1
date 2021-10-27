@@ -167,7 +167,7 @@ union ARINC429_SNS_DATA_DISCRETE_UNION
     struct ARINC429_SNS_DATA_DISCRETE_STRUCTURE
     {
         unsigned short label : 8;
-        unsigned short data : 20;
+        unsigned int data : 20;
         unsigned short empty : 3;
         unsigned short P : 1;
     } dsc;
@@ -179,7 +179,7 @@ union ARINC429_SNS_DATA_DISCRETE_UNION
 #pragma pack(push,1)
 struct SNS_DATA_STRUCTURE
 {
-    ARINC429_SNS_DATA_DISCRETE_UNION hiest;
+    ARINC429_SNS_DATA_DISCRETE_UNION hiegt;
     ARINC429_SNS_DATA_DISCRETE_UNION HDOP;
     ARINC429_SNS_DATA_DISCRETE_UNION VDOP;
     ARINC429_SNS_DATA_DISCRETE_UNION PU;  // путевой угол
@@ -195,6 +195,27 @@ struct SNS_DATA_STRUCTURE
     ARINC429_SRNS_DISCRETE_UNION srns;  // признаки СРНС
 };
 #pragma pack(pop)
+
+// структура хранения данных ИНС
+struct SNS_DATA_decoded
+{
+    float hiegt;
+    float HDOP;
+    float VDOP;
+    float PU;  // путевой угол
+    float R;  // текущая широта
+    float Rt;  // текущая широта (точно)
+    float L;  // текущая долгота
+    float Lt;  // текущая долгота (точно)
+    float delay;  // задержка выдачи обновленных НП
+    float UTC_time;  // текущее время UTC
+    float UTC_time_minor;  // текущее время UTC (младшие разряды)
+    float Vh;  // вертикальная скорость
+    int date_year;  // дата
+    int date_month;  // дата
+    int date_day;  // дата
+    //float srns;  // признаки СРНС
+};
 
 /* MIL-1553B */
 
@@ -282,7 +303,7 @@ struct INS_DATA_STRUCTURE
 #pragma pack(pop)
 
 // структура хранения данных ИНС
-struct INS_DATA_float
+struct INS_DATA_decoded
 {
     float latitude;     // широта
     float longtitude;   // долгота
@@ -297,7 +318,6 @@ struct INS_DATA_float
     float accele_az;    // ускорение поперечное, az
     float accel_ay;     // ускорение нормальное, ay
 };
-INS_DATA_float ins_float;
 
 /* таймер */
 
@@ -344,10 +364,9 @@ int codering(double max_value, int max_digit, int digit, double value);
 
 /* ---------- ИНС ---------- */
 
-// слово состояния ИНС
-ARINC429_DISCRETE_UNION ins_state;
-// слово данных ИНС
-INS_DATA_STRUCTURE ins_data;
+ARINC429_DISCRETE_UNION ins_state;  // слово состояния ИНС
+INS_DATA_STRUCTURE ins_data;  // слово данных ИНС
+INS_DATA_decoded ins_decoded;  // данные ИНС (незакодированные)
 
 void ins_self_check();  // самоконтроль
 bool ins_prepare();  // подготовка
@@ -357,11 +376,13 @@ void ins();  // функция для ИНС
 
 /* ---------- СНС ---------- */
 
-// слово признаков СРНС
-ARINC429_SRNS_DISCRETE_UNION sns_state;
+ARINC429_SRNS_DISCRETE_UNION sns_state;  // слово признаков СРНС
+SNS_DATA_STRUCTURE sns_data;  // слово данных СНС
+SNS_DATA_decoded sns_decoded;  // данные СНС (незакодированные)
 
 void sns_self_check();  // самоконтроль
 void sns_navigation();  // навигация
+void sns_forming_dataWord();  // формирование слова данных
 void sns();  // функция для СНС
 
 /* ---------- Передача данных ИНС и СНС ---------- */
@@ -463,35 +484,36 @@ void ins_navigation() {
     std::default_random_engine generator;
     std::normal_distribution<double> distribution(0, 0.002);
     mtx.lock();
-    if ( (ins_float.latitude == 0) & (ins_float.longtitude == 0) ) {
-        ins_float.longtitude = 47;
-        ins_float.latitude = 56;
-        ins_float.height = 2000;       
-        ins_float.heading_true = 20000; 
-        ins_float.pitch = 5;        
-        ins_float.roll = 0;         
-        ins_float.speed_NS = 1000;     
-        ins_float.speed_WE = 1000;     
-        ins_float.speed_vert = 70;   
-        ins_float.accele_ax = 5;    
-        ins_float.accele_az = 0;   
-        ins_float.accel_ay = 0;     
+    if ( (ins_decoded.latitude == 0) & (ins_decoded.longtitude == 0) ) {
+        ins_decoded.longtitude = 47;
+        ins_decoded.latitude = 56;
+        ins_decoded.height = 2000;       
+        ins_decoded.heading_true = 20000; 
+        ins_decoded.pitch = 5;        
+        ins_decoded.roll = 0;         
+        ins_decoded.speed_NS = 1000;     
+        ins_decoded.speed_WE = 1000;     
+        ins_decoded.speed_vert = 70;   
+        ins_decoded.accele_ax = 5;    
+        ins_decoded.accele_az = 0;   
+        ins_decoded.accel_ay = 0;     
     }
     else {
-        ins_float.longtitude += distribution(generator);
-        ins_float.latitude += distribution(generator);
-        ins_float.height += distribution(generator);       
-        ins_float.heading_true += distribution(generator); 
-        ins_float.pitch += distribution(generator);        
-        ins_float.roll += distribution(generator);         
-        ins_float.speed_NS += distribution(generator);     
-        ins_float.speed_WE += distribution(generator);     
-        ins_float.speed_vert += distribution(generator);   
-        ins_float.accele_ax += distribution(generator);    
-        ins_float.accele_az += distribution(generator);   
-        ins_float.accel_ay += distribution(generator);
-    } 
-    mtx.unlock();
+        ins_decoded.longtitude += distribution(generator);
+        ins_decoded.latitude += distribution(generator);
+        ins_decoded.height += distribution(generator);       
+        ins_decoded.heading_true += distribution(generator); 
+        ins_decoded.pitch += distribution(generator);        
+        ins_decoded.roll += distribution(generator);         
+        ins_decoded.speed_NS += distribution(generator);     
+        ins_decoded.speed_WE += distribution(generator);     
+        ins_decoded.speed_vert += distribution(generator);   
+        ins_decoded.accele_ax += distribution(generator);    
+        ins_decoded.accele_az += distribution(generator);   
+        ins_decoded.accel_ay += distribution(generator);
+    }
+    mtx.unlock(); 
+    ins_forming_dataWord();
 };
 
 void ins_forming_dataWord() {
@@ -513,7 +535,7 @@ void ins_forming_dataWord() {
     ARINC426_BNR_UNION temporary;  // временная локальная переменная
     temporary.Word = 0;
     temporary.bnr.label = 0x13;
-    temporary.bnr.data = codering(90, 20, 20, ins_float.latitude);
+    temporary.bnr.data = codering(90, 20, 20, ins_decoded.latitude);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -523,7 +545,7 @@ void ins_forming_dataWord() {
     // долгота
     temporary.Word = 0;
     temporary.bnr.label = 0x93;
-    temporary.bnr.data = codering(90, 20, 20, ins_float.longtitude);
+    temporary.bnr.data = codering(90, 20, 20, ins_decoded.longtitude);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -533,7 +555,7 @@ void ins_forming_dataWord() {
     // высота
     temporary.Word = 0;
     temporary.bnr.label = 0x8F;
-    temporary.bnr.data = codering(39950.7456, 19, 19, ins_float.height);
+    temporary.bnr.data = codering(39950.7456, 19, 19, ins_decoded.height);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -543,7 +565,7 @@ void ins_forming_dataWord() {
     // курс истинный
     temporary.Word = 0;
     temporary.bnr.label = 0x33;
-    temporary.bnr.data = codering(90, 16, 16, ins_float.heading_true);
+    temporary.bnr.data = codering(90, 16, 16, ins_decoded.heading_true);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -553,7 +575,7 @@ void ins_forming_dataWord() {
     // угол тангажа
     temporary.Word = 0;
     temporary.bnr.label = 0x2B;
-    temporary.bnr.data = codering(90, 16, 16, ins_float.pitch);
+    temporary.bnr.data = codering(90, 16, 16, ins_decoded.pitch);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -563,7 +585,7 @@ void ins_forming_dataWord() {
     // угол крена
     temporary.Word = 0;
     temporary.bnr.label = 0xAB;
-    temporary.bnr.data = codering(90, 16, 16, ins_float.roll);
+    temporary.bnr.data = codering(90, 16, 16, ins_decoded.roll);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -573,7 +595,7 @@ void ins_forming_dataWord() {
     // скорость север/юг
     temporary.Word = 0;
     temporary.bnr.label = 0x6F;
-    temporary.bnr.data = codering(2107.1644, 19, 19, ins_float.speed_NS);
+    temporary.bnr.data = codering(2107.1644, 19, 19, ins_decoded.speed_NS);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -583,7 +605,7 @@ void ins_forming_dataWord() {
     // скорость восток/запад
     temporary.Word = 0;
     temporary.bnr.label = 0xEF;
-    temporary.bnr.data = codering(2107.1644, 19, 19, ins_float.speed_WE);
+    temporary.bnr.data = codering(2107.1644/2, 19, 19, ins_decoded.speed_WE);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -593,7 +615,7 @@ void ins_forming_dataWord() {
     // скорость вертикальная инерциальная
     temporary.Word = 0;
     temporary.bnr.label = 0xAF;
-    temporary.bnr.data = codering(166.4614, 19, 19, ins_float.speed_vert);
+    temporary.bnr.data = codering(166.4614/2, 19, 19, ins_decoded.speed_vert);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -603,7 +625,7 @@ void ins_forming_dataWord() {
     // ускорение продольное ax
     temporary.Word = 0;
     temporary.bnr.label = 0x9B;
-    temporary.bnr.data = codering(4, 12, 12, ins_float.accele_ax);  // измеряется в g
+    temporary.bnr.data = codering(4/2, 12, 12, ins_decoded.accele_ax);  // измеряется в g
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -613,7 +635,7 @@ void ins_forming_dataWord() {
     // ускорение поперечное az
     temporary.Word = 0;
     temporary.bnr.label = 0x5B;
-    temporary.bnr.data = codering(4, 12, 12, ins_float.accele_az);
+    temporary.bnr.data = codering(4/2, 12, 12, ins_decoded.accele_az);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -623,7 +645,7 @@ void ins_forming_dataWord() {
     // ускорение нормальное ay
     temporary.Word = 0;
     temporary.bnr.label = 0xDB;
-    temporary.bnr.data = codering(4, 12, 12, ins_float.accel_ay);
+    temporary.bnr.data = codering(4/2, 12, 12, ins_decoded.accel_ay);
     temporary.bnr.sign = 1;
     temporary.bnr.SSM = 2;
     temporary.bnr.P = 1;
@@ -681,13 +703,12 @@ void ins() {
     mtx.unlock();
 
     cout << "ИНС: переключение в режим навигации.\n";
-    ins_navigation();
-    
-    // forming data
+
+    // navigation+forming data word
     Timer_forming timer_data;
     bool a = 1;
     while (a) {
-        timer_data.add(std::chrono::microseconds(2500), ins_forming_dataWord);
+        timer_data.add(std::chrono::microseconds(2500), ins_navigation);
     }
 };
 
@@ -718,6 +739,22 @@ void sns_self_check() {
         sns_state.dsc.empty2 = 0;
         sns_state.dsc.state_matrix = 0;
         sns_state.dsc.P = 1;
+
+        sns_decoded.hiegt = 0;
+        sns_decoded.HDOP = 0;
+        sns_decoded.VDOP = 0;
+        sns_decoded.PU = 0;
+        sns_decoded.R = 0;
+        sns_decoded.Rt = 0;
+        sns_decoded.L = 0;
+        sns_decoded.Lt = 0;
+        sns_decoded.delay = 0;
+        sns_decoded.UTC_time = 0;
+        sns_decoded.UTC_time_minor = 0;
+        sns_decoded.Vh = 0;
+        sns_decoded.date_year = 0;
+        sns_decoded.date_month = 0;
+        sns_decoded.date_day = 0;
         mtx.unlock();
     }
 };
@@ -726,16 +763,84 @@ void sns_navigation() {
     std::default_random_engine generator;
     std::normal_distribution<double> distribution(0, 0.02);
     mtx.lock();
-    if ( (lambda0 == 0) & (phi0 == 0) ) {
-        lambda0 = 47;
-        phi0 = 56;
+    if ( (sns_decoded.hiegt == 0) & (sns_decoded.UTC_time == 0) ) {
+        sns_decoded.hiegt = 2000;
+        sns_decoded.HDOP = 500;
+        sns_decoded.VDOP = 500;
+        sns_decoded.PU = 22.5;
+        sns_decoded.R = 56;
+        sns_decoded.Rt = 56.06;
+        sns_decoded.L = 47;
+        sns_decoded.Lt = 47.14;
+        sns_decoded.delay = 5;
+        sns_decoded.UTC_time = 15;
+        sns_decoded.UTC_time_minor = 47;
+        sns_decoded.Vh = 5;
+        sns_decoded.date_year = 2021;
+        sns_decoded.date_month = 10;
+        sns_decoded.date_day = 27;
     }
     else {
-        lambda0 += distribution(generator);
-        phi0 += distribution(generator);
+        sns_decoded.hiegt += distribution(generator);
+        sns_decoded.HDOP += distribution(generator);
+        sns_decoded.VDOP += distribution(generator);
+        sns_decoded.PU += distribution(generator);
+        sns_decoded.R += distribution(generator);
+        sns_decoded.Rt += distribution(generator);
+        sns_decoded.L += distribution(generator);
+        sns_decoded.Lt += distribution(generator);
+        sns_decoded.delay += distribution(generator);
+        sns_decoded.UTC_time += distribution(generator);
+        sns_decoded.UTC_time_minor += distribution(generator);
+        sns_decoded.Vh += distribution(generator);
+        sns_decoded.date_year = 2021;
+        sns_decoded.date_month = 10;
+        sns_decoded.date_day = 27;
     }
     mtx.unlock();
 };
+
+void sns_forming_dataWord() {
+    mtx.lock();
+    sns_data.hiegt.dsc.label = 076;
+    sns_data.hiegt.dsc.data = codering(65536, 28, 20, sns_decoded.hiegt);
+    sns_data.HDOP.dsc.label = 0101;
+    sns_data.HDOP.dsc.data = codering(512, 28, 15, sns_decoded.HDOP);
+    sns_data.VDOP.dsc.label = 0102;
+    sns_data.VDOP.dsc.data = codering(512, 28, 15, sns_decoded.VDOP);
+    sns_data.PU.dsc.label = 0103;
+    sns_data.PU.dsc.data = codering(90, 28, 15, sns_decoded.PU);
+    sns_data.R.dsc.label = 0110;
+    sns_data.R.dsc.data = codering(90, 28, 20, sns_decoded.R);
+    sns_data.Rt.dsc.label = 0120;
+    sns_data.Rt.dsc.data = codering(0.000085830, 28, 11, sns_decoded.Rt);
+    sns_data.L.dsc.label = 0111;
+    sns_data.L.dsc.data = codering(90, 28, 20, sns_decoded.L);
+    sns_data.Lt.dsc.label = 0121;
+    sns_data.Lt.dsc.data = codering(0.000085830, 28, 11, sns_decoded.Lt);
+    sns_data.delay.dsc.label = 0113;
+    sns_data.delay.dsc.data = codering(512, 28, 20, sns_decoded.delay);
+    sns_data.UTC_time.dsc.label = 0150;
+    sns_data.UTC_time.dsc.data = codering(16, 28, 5, sns_decoded.UTC_time);
+    sns_data.UTC_time.dsc.label = 0140;
+    sns_data.UTC_time.dsc.data = codering(512, 28, 20, sns_decoded.UTC_time_minor);
+    sns_data.Vh.dsc.label = 0165;
+    sns_data.Vh.dsc.data = codering(16384, 28, 15, sns_decoded.Vh);
+
+    // дата
+    sns_data.date.dsc.label = 0260;
+    sns_data.date.dsc.empty1 = 0;
+    sns_data.date.dsc.empty2 = 0;
+    sns_data.date.dsc.year = sns_decoded.date_year;
+    sns_data.date.dsc.month = sns_decoded.date_month;
+    sns_data.date.dsc.day = sns_decoded.date_day;
+    sns_data.date.dsc.state_matrix = 00;
+    sns_data.date.dsc.P = 0;
+
+    // признаки СРНС
+    sns_data.srns.Word = sns_state.Word;
+    mtx.unlock();
+}
 
 void sns() {
     sns_self_check();
