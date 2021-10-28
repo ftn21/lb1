@@ -923,11 +923,31 @@ int codering(double max_value, int max_digit, int digit, double value) {
 			arr[i] = 0;
 
 	int res = 0;
-	std::reverse(arr, arr+20);
-	for (int i=0; i<20; i++){
-		res += pow(2, i)*arr[i];
+	for (int i=0; i<max_digit; i++){
+		res += round(pow(2, max_digit - (1 + i))*arr[i]);
 	}
 	return res;
+}
+
+// двоичное декодирование
+double* decodering2 (int dec, int max_digit) {
+    double* bin = new double[max_digit]();
+    for (int i = 0 ; dec > 0; i++)
+    {
+		bin[max_digit -(i+1)] = (dec % 2) ;
+		dec /= 2;
+    }
+    return bin;
+}
+
+// декодирование
+double decodering(double max_value, int max_digit, int digit, int dec) {
+	double* arr = decodering2(dec, max_digit);
+	double sum = 0;
+	for (int i = 0; i <= digit - 1; i++){
+		sum = sum + round(arr[i]*(max_value / pow(2, i)));
+	}
+	return sum;
 }
 
 // функция передачи навигационных данных (СНС+ИНС) для третьего потока
