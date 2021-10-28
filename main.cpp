@@ -31,6 +31,8 @@ float lambda0 = 56;
 float phi0 = 47;
 int stls = 4;
 mutex mtx;
+bool ins_flag = 0;
+bool sns_flag = 0;
 
 // структуры и объединения
 
@@ -432,6 +434,37 @@ int main(int argc, char *argv[])
     t2.join();
     t3.join();
 
+    // прием данных
+    struct sockaddr_in adr, oth;
+    memset((char *)&adr, 0, sizeof(adr));
+    adr.sin_family = AF_INET;
+    adr.sin_port = htons(PORT);          // Host TO Network Short
+    adr.sin_addr.s_addr = htonl(IP_ADR); // Host TO Network Long
+
+    int s, i, slen = sizeof(oth) , recv_len;
+    int BUFLEN = 512;
+	char buf[BUFLEN];
+
+    // zero out the structure
+	memset((char *) &adr, 0, sizeof(adr));
+
+    //keep listening for data
+	while(1)
+	{
+		printf("Waiting for data...");
+		fflush(stdout);
+		
+		//try to receive some data, this is a blocking call
+		if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &oth, (socklen_t *)&slen)) == -1)
+		{
+			cout << "gg blocking call" << endl;
+		}
+		
+		//print details of the client/peer and the data received
+		printf("Received packet from %s:%d\n", inet_ntoa(oth.sin_addr), ntohs(oth.sin_port));
+		printf("Data: %s\n" , buf);
+	}
+
     cout << endl;
     
 }
@@ -444,7 +477,7 @@ int main(int argc, char *argv[])
 void ins_self_check() {
     cout << "Тест-контроль устройств ИНС 20 сек...\n";
 
-    timer(std::chrono::seconds(5));
+    timer(std::chrono::seconds(20));
     bool check = 1;
 
     if (check == 1) {
@@ -469,6 +502,7 @@ void ins_self_check() {
         ins_state.dsc.P = 0;
         mtx.unlock();
     }
+    cout << "ИНС: готово." << endl;
     //return 1; // 1 - исправность
 };
 
@@ -676,7 +710,7 @@ void ins_forming_dataWord() {
 
 void ins() {
     ins_self_check();     // самоконтроль
-
+    
     mtx.lock();
     ins_state.dsc.label = 210;
     ins_state.dsc.SDI = 01;
@@ -695,10 +729,12 @@ void ins() {
     ins_state.dsc.P = 0;
     mtx.unlock();
 
+    ins_flag = 1;
     cout << "ИНС: подготовка...\n";
     while (!ins_prepare()) {}  // подготовка
 
-    timer(std::chrono::seconds(15));
+    cout << "ИНС: ждём 2 мин (на самом деле 10сек)." << endl;
+    timer(std::chrono::seconds(10));
     cout << "ИНС: готовность.\n";
 
     mtx.lock();
@@ -734,7 +770,7 @@ void ins() {
 void sns_self_check() {
     cout << "СНС: тест-контроль устройств СНС 10 сек...\n";
 
-    timer(std::chrono::seconds(3));
+    timer(std::chrono::seconds(10));
     bool check = 1;
 
     if (check == 1) {
@@ -773,7 +809,8 @@ void sns_self_check() {
         sns_decoded.date_month = 0;
         sns_decoded.date_day = 0;
         mtx.unlock();
-    }
+    };
+    cout << "СНС: готово." << endl; 
 };
 
 void sns_navigation() {
@@ -862,7 +899,9 @@ void sns_forming_dataWord() {
 
 void sns() {
     sns_self_check();
-    timer(std::chrono::seconds(15));
+    sns_flag = 1;
+    cout << "СНС: ждём 2 мин (на самом деле 10сек)." << endl;
+    timer(std::chrono::seconds(10));
     if (stls >= 4) {
         cout << "СНС: переключение в режим навигации.\n";
         // navigation+forming data word
@@ -952,6 +991,7 @@ double decodering(double max_value, int max_digit, int digit, int dec) {
 
 // функция передачи навигационных данных (СНС+ИНС) для третьего потока
 void send_ns_data() {
+    cout << "send_ns_data" << endl;
     struct sockaddr_in adr, oth;
     memset((char *)&adr, 0, sizeof(adr));
     adr.sin_family = AF_INET;
@@ -975,12 +1015,16 @@ void send_ns_data() {
     // send data
     Timer timer_ins;
     Timer timer_sns;
-    bool a = 1;
+    bool a = 0;
+    while (!(ins_flag && sns_flag)) {}
+    a = 1;
+    cout << "Отправка данных начата." << endl;
     while (a) {
         mtx.lock();
-        timer_ins.add(std::chrono::milliseconds(1000), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
-        timer_ins.add(std::chrono::milliseconds(1000), send_data, s, adr, &ins_data, sizeof(ins_state));
+        timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
+        timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_data, sizeof(ins_data));
         timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_state.Word, sizeof(sns_state.Word));
+        timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_data, sizeof(sns_data));
         mtx.unlock();
     }
 };
