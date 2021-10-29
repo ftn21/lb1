@@ -1,0 +1,1 @@
+/usr/bin/c++  -g  -rdynamic CMakeFiles/sock_exmp.dir/main.cpp.o  -o sock_exmp 

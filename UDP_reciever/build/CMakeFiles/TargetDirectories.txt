@@ -1,0 +1,3 @@
+/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb/UDP_reciever/build/CMakeFiles/rebuild_cache.dir
+/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb/UDP_reciever/build/CMakeFiles/sock_exmp.dir
+/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb/UDP_reciever/build/CMakeFiles/edit_cache.dir

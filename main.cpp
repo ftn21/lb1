@@ -86,8 +86,7 @@ union ARINC429_DISCRETE_UNION
     struct ARINC429_DISCRETE_STRUCTURE
     {
         unsigned short label : 8; // он же адрес 
-        unsigned short zapros_init_data : 1;
-        unsigned short SDI : 1;
+        unsigned short SDI : 2;
 
         // data
         unsigned short prep_ZK : 1; // подготовка по ЗК
@@ -101,6 +100,7 @@ union ARINC429_DISCRETE_UNION
         unsigned short termostat : 1; // термостатирование
         unsigned short init_data : 1; // начальные данные 0-есть н.д., 1- нет н.д.
         unsigned short H_abc : 1;     // 0-есть, 1-нет
+        unsigned short serviceability: 1;  // исправность
         unsigned short boost : 1;     // готовность ускорения
         unsigned short ready : 1;     // готовность
         unsigned short empt2 : 3;
@@ -405,7 +405,8 @@ void sns_forming_dataWord();  // формирование слова данны�
 void sns();  // функция для СНС
 
 /* ---------- Передача данных ИНС и СНС ---------- */
-void send_ns_data();
+void send_ins_data();
+void send_sns_data();
 
 // реализация
 int main(int argc, char *argv[])
@@ -429,10 +430,12 @@ int main(int argc, char *argv[])
     
     std::thread t1(ins);
     std::thread t2(sns);
-    std::thread t3(send_ns_data);
+    std::thread t3(send_ins_data);
+    std::thread t4(send_sns_data);
     t1.join();
     t2.join();
     t3.join();
+    t4.join();
 
     // прием данных
     struct sockaddr_in adr, oth;
@@ -486,7 +489,7 @@ void ins_self_check() {
 
         mtx.lock();
         ins_state.dsc.label = 210;
-        ins_state.dsc.SDI = 01;
+        ins_state.dsc.SDI = 1;
         ins_state.dsc.prep_ZK = 0;
         ins_state.dsc.control = 0;
         ins_state.dsc.navigation = 0;
@@ -497,6 +500,7 @@ void ins_self_check() {
         ins_state.dsc.termostat = 1;
         ins_state.dsc.init_data = 1;
         ins_state.dsc.H_abc = 0;
+        ins_state.dsc.serviceability = 1; 
         ins_state.dsc.boost = 0;
         ins_state.dsc.ready = 0;
         ins_state.dsc.P = 0;
@@ -511,7 +515,7 @@ bool ins_prepare() {
 
     mtx.lock();
     ins_state.dsc.label = 210;
-    ins_state.dsc.SDI = 01;
+    ins_state.dsc.SDI = 1;
     ins_state.dsc.prep_ZK = 0;
     ins_state.dsc.control = 0;
     ins_state.dsc.navigation = 0;
@@ -522,6 +526,7 @@ bool ins_prepare() {
     ins_state.dsc.termostat = 1;
     ins_state.dsc.init_data = 0; // 0 - есть н.д.
     ins_state.dsc.H_abc = 0;
+    ins_state.dsc.serviceability = 1; 
     ins_state.dsc.boost = 0;
     ins_state.dsc.ready = 0;
     ins_state.dsc.P = 0;
@@ -582,6 +587,7 @@ void ins_forming_dataWord() {
     ins_data.accele_ax.Word = 0;
     ins_data.accele_az.Word = 0;
     ins_data.accel_ay.Word = 0;
+
     // широта
     ARINC426_BNR_UNION temporary;  // временная локальная переменная
     temporary.Word = 0;
@@ -713,7 +719,7 @@ void ins() {
     
     mtx.lock();
     ins_state.dsc.label = 210;
-    ins_state.dsc.SDI = 01;
+    ins_state.dsc.SDI = 1;
     ins_state.dsc.prep_ZK = 0;
     ins_state.dsc.control = 0;
     ins_state.dsc.navigation = 0;
@@ -724,22 +730,21 @@ void ins() {
     ins_state.dsc.termostat = 1;
     ins_state.dsc.init_data = 1;
     ins_state.dsc.H_abc = 0;
+    ins_state.dsc.serviceability = 1;
     ins_state.dsc.boost = 0;
     ins_state.dsc.ready = 0;
     ins_state.dsc.P = 0;
     mtx.unlock();
 
-    ins_flag = 1;
     cout << "ИНС: подготовка...\n";
     while (!ins_prepare()) {}  // подготовка
 
     cout << "ИНС: ждём 2 мин (на самом деле 10сек)." << endl;
     timer(std::chrono::seconds(10));
-    cout << "ИНС: готовность.\n";
 
     mtx.lock();
     ins_state.dsc.label = 210;
-    ins_state.dsc.SDI = 01;
+    ins_state.dsc.SDI = 1;
     ins_state.dsc.prep_ZK = 0;
     ins_state.dsc.control = 0;
     ins_state.dsc.navigation = 0;
@@ -750,10 +755,13 @@ void ins() {
     ins_state.dsc.termostat = 1;
     ins_state.dsc.init_data = 0;
     ins_state.dsc.H_abc = 0;
+    ins_state.dsc.serviceability = 1; // исправность
     ins_state.dsc.boost = 0;
     ins_state.dsc.ready = 1; // 1 - готовность
     ins_state.dsc.P = 0;
     mtx.unlock();
+    cout << "ИНС: готовность.\n";
+    ins_flag = 1;
 
     cout << "ИНС: переключение в режим навигации.\n";
 
@@ -990,9 +998,8 @@ double decodering(double max_value, int max_digit, int digit, int dec) {
 }
 
 // функция передачи навигационных данных (СНС+ИНС) для третьего потока
-void send_ns_data() {
-    cout << "send_ns_data" << endl;
-    struct sockaddr_in adr, oth;
+void send_ins_data() {
+    struct sockaddr_in adr;
     memset((char *)&adr, 0, sizeof(adr));
     adr.sin_family = AF_INET;
     adr.sin_port = htons(PORT);          // Host TO Network Short
@@ -1006,25 +1013,63 @@ void send_ns_data() {
         perror("connection error");
     }
 
-    // bind socket to port
-    if (bind(s, (struct sockaddr *)&adr, slen) == -1)
+    // send data
+    // Timer timer_ins;
+    // Timer timer_sns;
+    bool a = 0;
+    while (!(ins_flag && sns_flag)) {}
+    cout << "Отправка данных начата." << endl;
+    while (1) {
+        auto  start = std::chrono::system_clock::now();
+        auto  current = std::chrono::system_clock::now();
+        while ((current - start) < std::chrono::milliseconds(10)) 
+        {
+            current = std::chrono::system_clock::now();
+        }
+        mtx.lock();
+        send_data(s, adr, &ins_state.Word, sizeof(ins_state.Word));
+        send_data(s, adr, &ins_data, sizeof(ins_data));
+        mtx.unlock();
+
+        // mtx.lock();
+        // timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
+        // timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_data, sizeof(ins_data));
+        // timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_state.Word, sizeof(sns_state.Word));
+        // timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_data, sizeof(sns_data));
+        // mtx.unlock();
+    }
+};
+
+// функция передачи навигационных данных (СНС+ИНС) для третьего потока
+void send_sns_data() {
+    struct sockaddr_in adr;
+    memset((char *)&adr, 0, sizeof(adr));
+    adr.sin_family = AF_INET;
+    adr.sin_port = htons(PORT);          // Host TO Network Short
+    adr.sin_addr.s_addr = htonl(IP_ADR); // Host TO Network Long
+
+    int s, i, slen = sizeof(adr);
+
+    // создание соединения
+    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) //IPPROTO_UDP
     {
-        perror("binding error");
+        perror("connection error");
     }
 
     // send data
-    Timer timer_ins;
-    Timer timer_sns;
     bool a = 0;
-    while (!(ins_flag && sns_flag)) {}
-    a = 1;
+    while (!(ins_flag && sns_flag)) {};
     cout << "Отправка данных начата." << endl;
-    while (a) {
+    while (1) {
+        auto  start = std::chrono::system_clock::now();
+        auto  current = std::chrono::system_clock::now();
+        while ((current - start) < std::chrono::milliseconds(1000)) 
+        {
+            current = std::chrono::system_clock::now();
+        }
         mtx.lock();
-        timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
-        timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_data, sizeof(ins_data));
-        timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_state.Word, sizeof(sns_state.Word));
-        timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_data, sizeof(sns_data));
+        send_data(s,adr, &sns_state.Word, sizeof(sns_state.Word));
+        send_data(s, adr, &sns_data, sizeof(sns_data));
         mtx.unlock();
-    }
+    };
 };

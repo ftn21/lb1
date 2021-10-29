@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/lb/UDP_reciever/main.cpp
+iostream
+-
+stdio.h
+-
+string.h
+-
+stdlib.h
+-
+arpa/inet.h
+-
+sys/socket.h
+-
+math.h
+-
+iterator
+-
+vector
+-
+
