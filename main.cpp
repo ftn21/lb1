@@ -539,6 +539,7 @@ bool ins_prepare() {
 void ins_navigation() {
     std::default_random_engine generator;
     std::normal_distribution<double> distribution(0, 0.002);
+    while ( (sns_decoded.R == 0) && (sns_decoded.L ==0) ) {};
     mtx.lock();
     if ( (ins_decoded.latitude == 0) & (ins_decoded.longtitude == 0) ) {
         ins_decoded.longtitude = 47;
@@ -738,6 +739,7 @@ void ins() {
 
     cout << "ИНС: подготовка...\n";
     while (!ins_prepare()) {}  // подготовка
+    ins_flag = 1;
 
     cout << "ИНС: ждём 2 мин (на самом деле 10сек)." << endl;
     timer(std::chrono::seconds(10));
@@ -761,9 +763,27 @@ void ins() {
     ins_state.dsc.P = 0;
     mtx.unlock();
     cout << "ИНС: готовность.\n";
-    ins_flag = 1;
 
     cout << "ИНС: переключение в режим навигации.\n";
+
+    mtx.lock();
+    ins_state.dsc.label = 210;
+    ins_state.dsc.SDI = 1;
+    ins_state.dsc.prep_ZK = 0;
+    ins_state.dsc.control = 0;
+    ins_state.dsc.navigation = 1;
+    ins_state.dsc.gyrocopmassing = 1; // 1 - ГК
+    ins_state.dsc.relaunch = 0;
+    ins_state.dsc.prep_scale = 1; // таблица 4а?
+    ins_state.dsc.heat = 1;
+    ins_state.dsc.termostat = 1;
+    ins_state.dsc.init_data = 0;
+    ins_state.dsc.H_abc = 0;
+    ins_state.dsc.serviceability = 1; // исправность
+    ins_state.dsc.boost = 0;
+    ins_state.dsc.ready = 1; // 1 - готовность
+    ins_state.dsc.P = 0;
+    mtx.unlock();
 
     // navigation+forming data word
     Timer_forming_micro timer_data;

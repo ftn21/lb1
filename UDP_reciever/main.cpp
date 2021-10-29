@@ -316,33 +316,56 @@ int main(void)
 		}
 		
         vector<uint8_t> data(buf, buf + sizeof(buf));
-		int label = bit32u(&data[0], 0, 8);
-		if (label == 210) {
-			printf("Получено слово состояния ИНС.\n");
+        for (int i = 0; i < sizeof(buf)-8; i = i+8) {
+            int label = bit32u(&data[0], i, i+8);
+            if (label == 0x13) { // на самом деле получена широта из слова данных ИНС
+                printf("слово данных ИНС.\n");
+            }
+            else if (label == 076) {
+                printf("слово данных СНС.\n");
+            }
+            else if (label == 0273) {
+                printf("слово состояния СНС.\n");
+            }
+            else if (label == 210) {
+                printf("слово состояния ИНС.\n");
+            }
+        }
+		// int label = bit32u(&data[0], 0, 8);
+		// if (label == 210) {
+		// 	printf("Получено слово состояния ИНС.\n");
 
-            ins_state.dsc.label = bit32u(&data[0], 0, 8);
-            ins_state.dsc.SDI = bit32u(&data[0], 9, 2);
-            ins_state.dsc.prep_ZK = bit32u(&data[0], 11, 1);
-            ins_state.dsc.control = bit32u(&data[0], 12, 1);
-            ins_state.dsc.navigation = bit32u(&data[0], 13, 1);
-            ins_state.dsc.gyrocopmassing = bit32u(&data[0], 14, 1);
-            ins_state.dsc.relaunch = bit32u(&data[0], 16, 1);
-            ins_state.dsc.prep_scale = bit32u(&data[0], 17, 3); // таблица 4а?
-            ins_state.dsc.heat = bit32u(&data[0], 20, 1);
-            ins_state.dsc.termostat = bit32u(&data[0], 21, 1);
-            ins_state.dsc.init_data = bit32u(&data[0], 22, 1);
-            ins_state.dsc.H_abc = bit32u(&data[0], 23, 1);
-            ins_state.dsc.seviceability = bit32u(&data[0], 24, 1);
-            ins_state.dsc.boost = bit32u(&data[0], 25, 1);
-            ins_state.dsc.ready = bit32u(&data[0], 26, 1); // 1 - готовность
+        //     ins_state.dsc.label = bit32u(&data[0], 0, 8);
+        //     ins_state.dsc.SDI = bit32u(&data[0], 9, 2);
+        //     ins_state.dsc.prep_ZK = bit32u(&data[0], 11, 1);
+        //     ins_state.dsc.control = bit32u(&data[0], 12, 1);
+        //     ins_state.dsc.navigation = bit32u(&data[0], 13, 1);
+        //     ins_state.dsc.gyrocopmassing = bit32u(&data[0], 14, 1);
+        //     ins_state.dsc.relaunch = bit32u(&data[0], 16, 1);
+        //     ins_state.dsc.prep_scale = bit32u(&data[0], 17, 3);  // таблица 4а?
+        //     ins_state.dsc.heat = bit32u(&data[0], 20, 1);
+        //     ins_state.dsc.termostat = bit32u(&data[0], 21, 1);
+        //     ins_state.dsc.init_data = bit32u(&data[0], 22, 1);
+        //     ins_state.dsc.H_abc = bit32u(&data[0], 23, 1);
+        //     ins_state.dsc.seviceability = bit32u(&data[0], 24, 1);
+        //     ins_state.dsc.boost = bit32u(&data[0], 25, 1);
+        //     ins_state.dsc.ready = bit32u(&data[0], 26, 1);
+        //     ins_state.dsc.SSM = bit32u(&data[0], 30, 2); 
+        //     ins_state.dsc.ready = bit32u(&data[0], 32, 1);
             
-            if (ins_state.dsc.ready == 0) {
-                printf("ИНС: идёт подготовка...");
-            }
-            else if (ins_state.dsc.ready == 1) {
-                printf("ИНС: готовность.");
-            }
-		}
+        //     if (ins_state.dsc.ready == 0) {
+        //         printf("ИНС: идёт подготовка...");
+        //     }
+        //     else if (ins_state.dsc.ready == 1) {
+        //         printf("ИНС: готовность.");
+        //     }
+        //     if (ins_state.dsc.navigation == 0) {
+        //         //printf("ИНС: идёт подготовка...");
+        //     }
+        //     else if (ins_state.dsc.navigation == 1) {
+        //         printf("ИНС: навигация.");
+        //     }
+		// }
 		
 	}
 
