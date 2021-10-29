@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/ftn21/Documents/MAI/7sem/asbis/LB/realiziation/sock_exmp/main.cpp
+iostream
+-
+stdio.h
+-
+string.h
+-
+stdlib.h
+-
+arpa/inet.h
+-
+sys/socket.h
+-
+
