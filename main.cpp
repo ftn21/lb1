@@ -31,8 +31,10 @@ float lambda0 = 56;
 float phi0 = 47;
 int stls = 4;
 mutex mtx;
-bool ins_flag = 0;
-bool sns_flag = 0;
+bool ins_state_flag = 0;
+bool ins_data_flag = 0;
+bool sns_state_flag = 0;
+bool sns_data_flag = 0;
 
 // структуры и объединения
 
@@ -713,10 +715,16 @@ void ins_forming_dataWord() {
     temporary.Word = 0;
 
     mtx.unlock();
+
+    if (ins_data_flag == 0) {
+        ins_data_flag = 1;
+    }
 };
 
 void ins() {
     ins_self_check();     // самоконтроль
+
+    ins_state_flag = 1;
     
     mtx.lock();
     ins_state.dsc.label = 210;
@@ -724,14 +732,14 @@ void ins() {
     ins_state.dsc.prep_ZK = 0;
     ins_state.dsc.control = 0;
     ins_state.dsc.navigation = 0;
-    ins_state.dsc.gyrocopmassing = 1; // 1 - ГК
+    ins_state.dsc.gyrocopmassing = 1;
     ins_state.dsc.relaunch = 0;
-    ins_state.dsc.prep_scale = 1; // таблица 4а?
+    ins_state.dsc.prep_scale = 1;
     ins_state.dsc.heat = 1;
     ins_state.dsc.termostat = 1;
-    ins_state.dsc.init_data = 1;
+    ins_state.dsc.init_data = 0;  // нет начальных данных
     ins_state.dsc.H_abc = 0;
-    ins_state.dsc.serviceability = 1;
+    ins_state.dsc.serviceability = 1;  // исправность
     ins_state.dsc.boost = 0;
     ins_state.dsc.ready = 0;
     ins_state.dsc.P = 0;
@@ -739,7 +747,6 @@ void ins() {
 
     cout << "ИНС: подготовка...\n";
     while (!ins_prepare()) {}  // подготовка
-    ins_flag = 1;
 
     cout << "ИНС: ждём 2 мин (на самом деле 10сек)." << endl;
     timer(std::chrono::seconds(10));
@@ -750,9 +757,9 @@ void ins() {
     ins_state.dsc.prep_ZK = 0;
     ins_state.dsc.control = 0;
     ins_state.dsc.navigation = 0;
-    ins_state.dsc.gyrocopmassing = 1; // 1 - ГК
+    ins_state.dsc.gyrocopmassing = 1;
     ins_state.dsc.relaunch = 0;
-    ins_state.dsc.prep_scale = 1; // таблица 4а?
+    ins_state.dsc.prep_scale = 1;
     ins_state.dsc.heat = 1;
     ins_state.dsc.termostat = 1;
     ins_state.dsc.init_data = 0;
@@ -923,11 +930,16 @@ void sns_forming_dataWord() {
     // признаки СРНС
     sns_data.srns.Word = sns_state.Word;
     mtx.unlock();
+
+    if (sns_data_flag == 0) {
+        sns_data_flag = 1;
+    }
 }
 
 void sns() {
     sns_self_check();
-    sns_flag = 1;
+    sns_state_flag = 1;
+
     cout << "СНС: ждём 2 мин (на самом деле 10сек)." << endl;
     timer(std::chrono::seconds(10));
     if (stls >= 4) {
@@ -1017,7 +1029,7 @@ double decodering(double max_value, int max_digit, int digit, int dec) {
 	return sum;
 }
 
-// функция передачи навигационных данных (СНС+ИНС) для третьего потока
+// функция передачи навигационных данных ИНС для третьего потока
 void send_ins_data() {
     struct sockaddr_in adr;
     memset((char *)&adr, 0, sizeof(adr));
@@ -1033,12 +1045,9 @@ void send_ins_data() {
         perror("connection error");
     }
 
-    // send data
-    // Timer timer_ins;
-    // Timer timer_sns;
     bool a = 0;
-    while (!(ins_flag && sns_flag)) {}
-    cout << "Отправка данных начата." << endl;
+    while (!ins_data_flag) {}
+    cout << "ИНС: Отправка данных начата." << endl;
     while (1) {
         auto  start = std::chrono::system_clock::now();
         auto  current = std::chrono::system_clock::now();
@@ -1046,21 +1055,21 @@ void send_ins_data() {
         {
             current = std::chrono::system_clock::now();
         }
-        mtx.lock();
-        send_data(s, adr, &ins_state.Word, sizeof(ins_state.Word));
-        send_data(s, adr, &ins_data, sizeof(ins_data));
-        mtx.unlock();
-
-        // mtx.lock();
-        // timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_state.Word, sizeof(ins_state.Word));
-        // timer_ins.add(std::chrono::milliseconds(10), send_data, s, adr, &ins_data, sizeof(ins_data));
-        // timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_state.Word, sizeof(sns_state.Word));
-        // timer_sns.add(std::chrono::milliseconds(1000), send_data, s, adr, &sns_data, sizeof(sns_data));
-        // mtx.unlock();
+        if ((ins_state_flag == 1) & (ins_data_flag == 0)) {
+            mtx.lock();
+            send_data(s, adr, &ins_state.Word, sizeof(ins_state.Word));
+            mtx.unlock();
+        }
+        else if ((ins_state_flag == 1) & (ins_data_flag == 1)) {
+            mtx.lock();
+            send_data(s, adr, &ins_state.Word, sizeof(ins_state.Word));
+            send_data(s, adr, &ins_data, sizeof(ins_data));
+            mtx.unlock();
+        }
     }
 };
 
-// функция передачи навигационных данных (СНС+ИНС) для третьего потока
+// функция передачи навигационных данных СНС для третьего потока
 void send_sns_data() {
     struct sockaddr_in adr;
     memset((char *)&adr, 0, sizeof(adr));
@@ -1078,8 +1087,8 @@ void send_sns_data() {
 
     // send data
     bool a = 0;
-    while (!(ins_flag && sns_flag)) {};
-    cout << "Отправка данных начата." << endl;
+    while (!sns_state_flag) {};
+    cout << "СНС: Отправка данных начата." << endl;
     while (1) {
         auto  start = std::chrono::system_clock::now();
         auto  current = std::chrono::system_clock::now();
@@ -1087,9 +1096,16 @@ void send_sns_data() {
         {
             current = std::chrono::system_clock::now();
         }
-        mtx.lock();
-        send_data(s,adr, &sns_state.Word, sizeof(sns_state.Word));
-        send_data(s, adr, &sns_data, sizeof(sns_data));
-        mtx.unlock();
+        if ((sns_state_flag == 1) & (sns_data_flag == 0)) {
+            mtx.lock();
+            send_data(s,adr, &sns_state.Word, sizeof(sns_state.Word));
+            mtx.unlock();
+        }
+        else if ((sns_state_flag == 1) & (sns_data_flag == 1)) {
+            mtx.lock();
+            send_data(s, adr, &ins_state.Word, sizeof(ins_state.Word));
+            send_data(s, adr, &sns_data, sizeof(sns_data));
+            mtx.unlock();
+        }
     };
 };
